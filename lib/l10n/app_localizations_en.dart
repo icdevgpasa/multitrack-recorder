@@ -214,4 +214,78 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get micGainHint =>
       'Play as loud as you will: the bar should reach yellow, but not red.';
+
+  @override
+  String get audioSettings => 'Audio settings';
+
+  @override
+  String get monitoringTitle => 'Hear yourself (monitoring)';
+
+  @override
+  String get monitoringHint =>
+      'Hear your instrument in the headphones while recording. Headphones only: on the speaker it would howl.';
+
+  @override
+  String get monitoringBlocked => 'Plug in headphones to hear yourself.';
+
+  @override
+  String get monitoringBluetooth =>
+      'Bluetooth headphones add a noticeable delay; wired ones are best for monitoring.';
+
+  @override
+  String get monitorVolume => 'Volume';
+
+  @override
+  String get monitorReverb => 'Reverb';
+
+  @override
+  String get monitoringOn => 'Turn monitoring on';
+
+  @override
+  String get monitoringOff => 'Turn monitoring off';
+
+  @override
+  String get calibrationTitle => 'Latency calibration';
+
+  @override
+  String get calibrationHint =>
+      'Makes new takes land exactly in time. Calibrate once for each output you use.';
+
+  @override
+  String currentOutput(String name) {
+    return 'Output: $name';
+  }
+
+  @override
+  String get notCalibrated => 'Not calibrated yet';
+
+  @override
+  String calibratedOffset(String ms) {
+    return 'Correction: $ms ms';
+  }
+
+  @override
+  String get calibrate => 'Calibrate';
+
+  @override
+  String get calibrating => 'Listening for clicks…';
+
+  @override
+  String get resetCalibration => 'Reset';
+
+  @override
+  String get calibrationHowTo =>
+      'Be quiet for 4 seconds. Speaker: leave the phone on the table, volume up. Headphones: hold an earpiece right against the phone\'s microphone (bottom edge).';
+
+  @override
+  String get start => 'Start';
+
+  @override
+  String calibrationDone(String ms) {
+    return 'Calibrated: round trip $ms ms.';
+  }
+
+  @override
+  String get calibrationFailed =>
+      'Couldn\'t hear the clicks. Turn the volume up and try again.';
 }

@@ -16,7 +16,8 @@ Na prawdziwym urządzeniu, najlepiej ze słuchawkami i bez:
 
 - [ ] Pierwsze uruchomienie pyta o mikrofon; po odmowie widać komunikat.
 - [ ] Nagranie 3–4 ścieżek z metronomem i odliczaniem; ścieżki są równo w czasie
-      (jeśli każda kolejna jest przesunięta, trzeba skalibrować opóźnienie: daj znać o ile).
+      (jeśli nie: Ustawienia audio → Kalibruj, osobno dla głośnika i każdych słuchawek).
+- [ ] Odsłuch na żywo w słuchawkach przewodowych; na głośniku odsłuch się wycisza (brak sprzężenia).
 - [ ] Nagrywanie przez słuchawki przewodowe, AirPods i (jeśli masz) interfejs audio USB.
 - [ ] Telefon dzwoni / przychodzi alarm w trakcie nagrywania: aplikacja się nie wiesza.
 - [ ] Solo, mute, panorama, master słychać w odtwarzaniu i w eksporcie.

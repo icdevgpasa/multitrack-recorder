@@ -147,5 +147,47 @@
       }
     }
   },
-  "micGainHint": "Play as loud as you will: the bar should reach yellow, but not red."
+  "micGainHint": "Play as loud as you will: the bar should reach yellow, but not red.",
+  "audioSettings": "Audio settings",
+  "monitoringTitle": "Hear yourself (monitoring)",
+  "monitoringHint": "Hear your instrument in the headphones while recording. Headphones only: on the speaker it would howl.",
+  "monitoringBlocked": "Plug in headphones to hear yourself.",
+  "monitoringBluetooth": "Bluetooth headphones add a noticeable delay; wired ones are best for monitoring.",
+  "monitorVolume": "Volume",
+  "monitorReverb": "Reverb",
+  "monitoringOn": "Turn monitoring on",
+  "monitoringOff": "Turn monitoring off",
+  "calibrationTitle": "Latency calibration",
+  "calibrationHint": "Makes new takes land exactly in time. Calibrate once for each output you use.",
+  "currentOutput": "Output: {name}",
+  "@currentOutput": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "notCalibrated": "Not calibrated yet",
+  "calibratedOffset": "Correction: {ms} ms",
+  "@calibratedOffset": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrate": "Calibrate",
+  "calibrating": "Listening for clicks…",
+  "resetCalibration": "Reset",
+  "calibrationHowTo": "Be quiet for 4 seconds. Speaker: leave the phone on the table, volume up. Headphones: hold an earpiece right against the phone's microphone (bottom edge).",
+  "start": "Start",
+  "calibrationDone": "Calibrated: round trip {ms} ms.",
+  "@calibrationDone": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationFailed": "Couldn't hear the clicks. Turn the volume up and try again."
 }

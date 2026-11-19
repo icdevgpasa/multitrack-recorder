@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'studio/audio_settings.dart';
 import 'studio/project_library.dart';
 import 'ui/l10n.dart';
 import 'ui/projects_screen.dart';
@@ -19,15 +20,22 @@ Future<void> main() async {
     MultitrackApp(
       library: ProjectLibrary(Directory('${docs.path}/projects')),
       engine: MultitrackEngine(),
+      settings: AudioSettingsStore(File('${docs.path}/settings.json')),
     ),
   );
 }
 
 class MultitrackApp extends StatelessWidget {
-  const MultitrackApp({super.key, required this.library, required this.engine});
+  const MultitrackApp({
+    super.key,
+    required this.library,
+    required this.engine,
+    required this.settings,
+  });
 
   final ProjectLibrary library;
   final MultitrackEngine engine;
+  final AudioSettingsStore settings;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -40,6 +48,6 @@ class MultitrackApp extends StatelessWidget {
     localeListResolutionCallback: (locales, _) => resolveAppLocale(locales),
     debugShowCheckedModeBanner: false,
     theme: buildTheme(),
-    home: ProjectsScreen(library: library, engine: engine),
+    home: ProjectsScreen(library: library, engine: engine, settings: settings),
   );
 }

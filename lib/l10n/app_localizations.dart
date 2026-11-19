@@ -439,6 +439,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play as loud as you will: the bar should reach yellow, but not red.'**
   String get micGainHint;
+
+  /// No description provided for @audioSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio settings'**
+  String get audioSettings;
+
+  /// No description provided for @monitoringTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hear yourself (monitoring)'**
+  String get monitoringTitle;
+
+  /// No description provided for @monitoringHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hear your instrument in the headphones while recording. Headphones only: on the speaker it would howl.'**
+  String get monitoringHint;
+
+  /// No description provided for @monitoringBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Plug in headphones to hear yourself.'**
+  String get monitoringBlocked;
+
+  /// No description provided for @monitoringBluetooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth headphones add a noticeable delay; wired ones are best for monitoring.'**
+  String get monitoringBluetooth;
+
+  /// No description provided for @monitorVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get monitorVolume;
+
+  /// No description provided for @monitorReverb.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverb'**
+  String get monitorReverb;
+
+  /// No description provided for @monitoringOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn monitoring on'**
+  String get monitoringOn;
+
+  /// No description provided for @monitoringOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn monitoring off'**
+  String get monitoringOff;
+
+  /// No description provided for @calibrationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency calibration'**
+  String get calibrationTitle;
+
+  /// No description provided for @calibrationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Makes new takes land exactly in time. Calibrate once for each output you use.'**
+  String get calibrationHint;
+
+  /// No description provided for @currentOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output: {name}'**
+  String currentOutput(String name);
+
+  /// No description provided for @notCalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not calibrated yet'**
+  String get notCalibrated;
+
+  /// No description provided for @calibratedOffset.
+  ///
+  /// In en, this message translates to:
+  /// **'Correction: {ms} ms'**
+  String calibratedOffset(String ms);
+
+  /// No description provided for @calibrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrate'**
+  String get calibrate;
+
+  /// No description provided for @calibrating.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening for clicks…'**
+  String get calibrating;
+
+  /// No description provided for @resetCalibration.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get resetCalibration;
+
+  /// No description provided for @calibrationHowTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Be quiet for 4 seconds. Speaker: leave the phone on the table, volume up. Headphones: hold an earpiece right against the phone\'s microphone (bottom edge).'**
+  String get calibrationHowTo;
+
+  /// No description provided for @start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get start;
+
+  /// No description provided for @calibrationDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrated: round trip {ms} ms.'**
+  String calibrationDone(String ms);
+
+  /// No description provided for @calibrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t hear the clicks. Turn the volume up and try again.'**
+  String get calibrationFailed;
 }
 
 class _AppLocalizationsDelegate

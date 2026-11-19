@@ -43,6 +43,7 @@ enum EngineError: LocalizedError {
   case cannotOpen(String)
   case nothingToExport
   case renderFailed
+  case calibrationFailed
 
   var errorDescription: String? {
     switch self {
@@ -51,6 +52,7 @@ enum EngineError: LocalizedError {
     case .cannotOpen(let p): return "Cannot open audio file: \(p)"
     case .nothingToExport: return "Nothing to export (all tracks muted?)"
     case .renderFailed: return "Rendering the mix failed"
+    case .calibrationFailed: return "No clicks heard"
     }
   }
 }
@@ -72,6 +74,17 @@ final class AudioEngine {
   private var manualOffset: Double = 0
   /// Linear software gain applied to the input (recording + meter).
   private var inputGain: Float = 4  // +12 dB
+
+  // Live monitoring: input -> EQ (gain) -> reverb -> mixer -> main mixer.
+  private let monitorEQ = AVAudioUnitEQ(numberOfBands: 0)
+  private let monitorReverb = AVAudioUnitReverb()
+  private let monitorMixer = AVAudioMixerNode()
+  private var monitorEnabled = false
+  private var monitorVolume: Float = 0.8
+
+  // Latency calibration capture (guarded by `lock`).
+  private var capture: CalibrationCapture?
+  private(set) var isCalibrating = false
   private var graphReady = false
 
   // Transport (main thread).
@@ -98,6 +111,9 @@ final class AudioEngine {
     nc.addObserver(
       self, selector: #selector(interrupted(_:)),
       name: AVAudioSession.interruptionNotification, object: nil)
+    nc.addObserver(
+      self, selector: #selector(routeChanged),
+      name: AVAudioSession.routeChangeNotification, object: nil)
   }
 
   static func requestPermission(_ done: @escaping (Bool) -> Void) {
@@ -125,8 +141,21 @@ final class AudioEngine {
 
     if !graphReady {
       engine.attach(clickNode)
+      engine.attach(monitorEQ)
+      engine.attach(monitorReverb)
+      engine.attach(monitorMixer)
+      monitorReverb.loadFactoryPreset(.mediumRoom)
+      monitorReverb.wetDryMix = 20
       graphReady = true
     }
+    let inFormat = engine.inputNode.outputFormat(forBus: 0)
+    if inFormat.channelCount > 0 {
+      engine.connect(engine.inputNode, to: monitorEQ, format: inFormat)
+      engine.connect(monitorEQ, to: monitorReverb, format: inFormat)
+      engine.connect(monitorReverb, to: monitorMixer, format: inFormat)
+      engine.connect(monitorMixer, to: engine.mainMixerNode, format: nil)
+    }
+    applyMonitoring()
     let outRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
     let clickFormat = AVAudioFormat(standardFormatWithSampleRate: outRate, channels: 1)!
     engine.connect(clickNode, to: engine.mainMixerNode, format: clickFormat)
@@ -167,6 +196,11 @@ final class AudioEngine {
       self.stopTransport()
       try? self.start()
     }
+  }
+
+  @objc private func routeChanged() {
+    // Headphones in/out: monitoring must never reach the speaker.
+    DispatchQueue.main.async { self.applyMonitoring() }
   }
 
   @objc private func interrupted(_ note: Notification) {
@@ -226,6 +260,128 @@ final class AudioEngine {
     lock.lock()
     inputGain = Float(pow(10, max(0, min(36, db)) / 20))
     lock.unlock()
+    applyMonitoring()
+  }
+
+  // MARK: - Monitoring
+
+  func setMonitoring(enabled: Bool, volume: Float, reverb: Float) {
+    monitorEnabled = enabled
+    monitorVolume = max(0, min(1, volume))
+    monitorReverb.wetDryMix = max(0, min(100, reverb * 100))
+    applyMonitoring()
+  }
+
+  /// Monitoring through the phone speaker would howl, so it only plays
+  /// through headphones / external outputs.
+  var monitorBlocked: Bool { monitorEnabled && Self.outputIsSpeaker }
+
+  private func applyMonitoring() {
+    lock.lock()
+    let gain = inputGain
+    lock.unlock()
+    monitorEQ.globalGain = min(24, 20 * log10(max(gain, 1)))
+    let on = monitorEnabled && !Self.outputIsSpeaker && !isCalibrating
+    monitorMixer.outputVolume = on ? monitorVolume : 0
+  }
+
+  static var outputIsSpeaker: Bool {
+    AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+      $0.portType == .builtInSpeaker || $0.portType == .builtInReceiver
+    }
+  }
+
+  /// Stable key of the current output (e.g. "Headphones:Headphones",
+  /// "BluetoothA2DPOutput:AirPods Pro"), for per-route calibration.
+  static var routeKey: String {
+    guard let out = AVAudioSession.sharedInstance().currentRoute.outputs.first else {
+      return "none"
+    }
+    return "\(out.portType.rawValue):\(out.portName)"
+  }
+
+  static var routeName: String {
+    AVAudioSession.sharedInstance().currentRoute.outputs.first?.portName ?? "-"
+  }
+
+  // MARK: - Latency calibration
+
+  /// Plays clicks and listens for them on the microphone to measure the real
+  /// round trip. Applies the result as the manual offset and reports it.
+  func calibrate(completion: @escaping (Result<[String: Any], Error>) -> Void) {
+    do {
+      try start()
+    } catch {
+      completion(.failure(error))
+      return
+    }
+    _ = try? stopRecording()
+    stopTransport()
+
+    let outRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
+    guard let format = AVAudioFormat(standardFormatWithSampleRate: outRate, channels: 1),
+      let burst = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(0.004 * outRate)),
+      let data = burst.floatChannelData?[0]
+    else {
+      completion(.failure(EngineError.calibrationFailed))
+      return
+    }
+    burst.frameLength = burst.frameCapacity
+    for i in 0..<Int(burst.frameLength) {
+      // Short full-scale 3 kHz burst: sharp onset, easy to find.
+      data[i] = Float(sin(2 * .pi * 3000 * Double(i) / outRate))
+    }
+
+    let clicks = 8
+    let interval = 0.35
+    let lead = 0.4
+    isCalibrating = true
+    applyMonitoring()
+    let savedVolume = clickNode.volume
+    clickNode.volume = 1
+
+    lock.lock()
+    capture = CalibrationCapture()
+    lock.unlock()
+
+    let startHost = mach_absolute_time() + AVAudioTime.hostTime(forSeconds: lead)
+    for i in 0..<clicks {
+      clickNode.scheduleBuffer(
+        burst, at: AVAudioTime(sampleTime: AVAudioFramePosition(Double(i) * interval * outRate), atRate: outRate))
+    }
+    clickNode.play(at: AVAudioTime(hostTime: startHost))
+
+    let total = lead + Double(clicks) * interval + 0.4
+    DispatchQueue.main.asyncAfter(deadline: .now() + total) {
+      self.clickNode.stop()
+      self.clickNode.volume = savedVolume
+      self.lock.lock()
+      let cap = self.capture
+      self.capture = nil
+      self.lock.unlock()
+      self.isCalibrating = false
+      self.applyMonitoring()
+
+      let expected = (0..<clicks).map {
+        startHost + AVAudioTime.hostTime(forSeconds: Double($0) * interval)
+      }
+      guard let cap = cap, let measured = cap.roundTrip(clickHosts: expected) else {
+        completion(.failure(EngineError.calibrationFailed))
+        return
+      }
+      let session = AVAudioSession.sharedInstance()
+      let reported = session.inputLatency + session.outputLatency
+      let offset = measured.seconds - reported
+      self.manualOffset = offset
+      completion(
+        .success([
+          "measuredMs": measured.seconds * 1000,
+          "reportedMs": reported * 1000,
+          "offsetMs": offset * 1000,
+          "detections": measured.detections,
+          "route": Self.routeKey,
+        ]))
+    }
   }
 
   func setMasterVolume(_ v: Float) {
@@ -343,6 +499,7 @@ final class AudioEngine {
     defer { lock.unlock() }
     let gain = inputGain
     inputPeak = max(inputPeak, min(1, Self.peak(buffer) * gain))
+    capture?.append(buffer, when)
     guard let writer = writer else { return }
     if let ch = buffer.floatChannelData {
       spectrum.process(ch[0], count: Int(buffer.frameLength), sampleRate: buffer.format.sampleRate)
@@ -413,6 +570,10 @@ final class AudioEngine {
       "outputLevel": Double(outPeak),
       "beat": beat,
       "spectrum": bands,
+      "route": Self.routeKey,
+      "routeName": Self.routeName,
+      "monitorBlocked": monitorBlocked,
+      "calibrating": isCalibrating,
     ]
   }
 
@@ -477,5 +638,48 @@ final class AudioEngine {
     out.frameLength = count
     dst.update(from: src.advanced(by: Int(from)), count: Int(count))
     return out
+  }
+}
+
+/// Raw input recorded during calibration, with the host time of its first sample.
+struct CalibrationCapture {
+  private(set) var firstHost: UInt64?
+  private(set) var rate: Double = 0
+  private(set) var samples: [Float] = []
+
+  mutating func append(_ buffer: AVAudioPCMBuffer, _ when: AVAudioTime) {
+    guard let ch = buffer.floatChannelData?[0] else { return }
+    if firstHost == nil {
+      guard when.isHostTimeValid else { return }
+      firstHost = when.hostTime
+      rate = buffer.format.sampleRate
+    }
+    samples.append(contentsOf: UnsafeBufferPointer(start: ch, count: Int(buffer.frameLength)))
+  }
+
+  /// Median delay between each click's render time and its onset in the input.
+  func roundTrip(clickHosts: [UInt64]) -> (seconds: Double, detections: Int)? {
+    guard let first = firstHost, rate > 0 else { return nil }
+    var delays: [Double] = []
+    let window = Int(0.3 * rate)
+    let pre = Int(0.03 * rate)
+    for host in clickHosts where host > first {
+      let idx = Int(AVAudioTime.seconds(forHostTime: host - first) * rate)
+      guard idx - pre >= 0, idx + window <= samples.count else { continue }
+      var noise: Float = 0
+      for i in (idx - pre)..<idx { noise = max(noise, abs(samples[i])) }
+      var peak: Float = 0
+      for i in idx..<(idx + window) { peak = max(peak, abs(samples[i])) }
+      guard peak > max(0.01, noise * 4) else { continue }
+      let threshold = max(noise * 2, peak * 0.3)
+      guard let onset = (idx..<(idx + window)).first(where: { abs(samples[$0]) >= threshold }) else {
+        continue
+      }
+      let d = Double(onset - idx) / rate
+      if d > 0.001 && d < 0.3 { delays.append(d) }
+    }
+    guard delays.count >= 4 else { return nil }
+    delays.sort()
+    return (delays[delays.count / 2], delays.count)
   }
 }

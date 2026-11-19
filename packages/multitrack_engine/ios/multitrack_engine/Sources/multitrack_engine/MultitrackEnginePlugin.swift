@@ -40,6 +40,20 @@ public class MultitrackEnginePlugin: NSObject, FlutterPlugin, FlutterStreamHandl
       case "setInputGain":
         engine.setInputGain(db: (call.arguments as? NSNumber)?.doubleValue ?? 12)
         result(nil)
+      case "setMonitoring":
+        engine.setMonitoring(
+          enabled: args["enabled"] as? Bool ?? false,
+          volume: (args["volume"] as? NSNumber)?.floatValue ?? 0.8,
+          reverb: (args["reverb"] as? NSNumber)?.floatValue ?? 0.2)
+        result(nil)
+      case "calibrateLatency":
+        engine.calibrate { outcome in
+          switch outcome {
+          case .success(let map): result(map)
+          case .failure(let error):
+            result(FlutterError(code: "calibration", message: error.localizedDescription, details: nil))
+          }
+        }
       case "setMasterVolume":
         engine.setMasterVolume((call.arguments as? NSNumber)?.floatValue ?? 1)
         result(nil)

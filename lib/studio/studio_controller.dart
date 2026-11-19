@@ -6,6 +6,7 @@ import 'package:multitrack_engine/multitrack_engine.dart';
 import '../audio/normalize.dart';
 import '../audio/waveform.dart';
 import '../models/project.dart';
+import 'audio_settings.dart';
 import 'project_store.dart';
 
 enum StudioPhase { loading, noPermission, ready, error }
@@ -20,9 +21,11 @@ class StudioController extends ChangeNotifier {
     Future<Waveform?> Function(String path)? waveformLoader,
     Future<double?> Function(String src, String dst)? normalizer,
     String Function(int number)? trackName,
+    AudioSettingsStore? settingsStore,
   }) : _loadWaveform = waveformLoader ?? Waveform.load,
        _normalize = normalizer ?? normalizeWav,
        _trackName = trackName ?? ((n) => 'Track $n'),
+       settingsStore = settingsStore ?? AudioSettingsStore.memory(),
        _newId =
            idGenerator ??
            (() => DateTime.now().microsecondsSinceEpoch.toRadixString(36));
@@ -34,6 +37,10 @@ class StudioController extends ChangeNotifier {
   final Future<Waveform?> Function(String path) _loadWaveform;
   final Future<double?> Function(String src, String dst) _normalize;
   final String Function(int number) _trackName;
+  final AudioSettingsStore settingsStore;
+  AudioSettings audio = AudioSettings();
+  String? _appliedRoute;
+  bool calibrating = false;
 
   /// Waveforms by track id, filled in the background.
   final waveforms = <String, Waveform>{};
@@ -70,6 +77,8 @@ class StudioController extends ChangeNotifier {
         return;
       }
       await engine.initialize();
+      audio = await settingsStore.load();
+      await _applyMonitoring();
       await _syncEngine();
       _sub = engine.status.listen(_onStatus);
       unawaited(_loadWaveforms());
@@ -83,6 +92,12 @@ class StudioController extends ChangeNotifier {
 
   void _onStatus(EngineStatus s) {
     status = s;
+    if (s.route.isNotEmpty && s.route != _appliedRoute) {
+      // New output (headphones plugged in, AirPods connected...): use its
+      // own calibration.
+      _appliedRoute = s.route;
+      unawaited(engine.setLatencyOffset(audio.latencyOffsetsMs[s.route] ?? 0));
+    }
     if (isRecording && s.isRecording && s.positionSeconds >= 0) {
       final target = (s.positionSeconds * Waveform.peaksPerSecond).floor();
       while (liveLevels.length < target) {
@@ -277,6 +292,57 @@ class StudioController extends ChangeNotifier {
     await store.deleteAudio(oldName);
     unawaited(_loadWaveforms());
     return true;
+  }
+
+  // Monitoring & calibration ----------------------------------------------
+
+  Future<void> _applyMonitoring() => engine.setMonitoring(
+    enabled: audio.monitorOn,
+    volume: audio.monitorVolume,
+    reverb: audio.monitorReverb,
+  );
+
+  Future<void> setMonitoring({bool? on, double? volume, double? reverb}) async {
+    if (on != null) audio.monitorOn = on;
+    if (volume != null) audio.monitorVolume = volume.clamp(0.0, 1.0);
+    if (reverb != null) audio.monitorReverb = reverb.clamp(0.0, 1.0);
+    notifyListeners();
+    await _applyMonitoring();
+    await settingsStore.save(audio);
+  }
+
+  /// Calibration stored for the current output, in ms (null = never run).
+  double? get currentOffsetMs => audio.latencyOffsetsMs[status.route];
+
+  /// Measures the round trip on the current output and remembers it.
+  /// Returns null on failure ([errorMessage] is set).
+  Future<CalibrationResult?> calibrate() async {
+    if (isRecording || calibrating) return null;
+    if (isPlaying) await engine.stop();
+    calibrating = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      final r = await engine.calibrateLatency();
+      final route = r.route.isNotEmpty ? r.route : status.route;
+      audio.latencyOffsetsMs[route] = r.offsetMs;
+      _appliedRoute = route;
+      await settingsStore.save(audio);
+      return r;
+    } catch (e) {
+      errorMessage = '$e';
+      return null;
+    } finally {
+      calibrating = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> resetCalibration() async {
+    audio.latencyOffsetsMs.remove(status.route);
+    await engine.setLatencyOffset(0);
+    await settingsStore.save(audio);
+    notifyListeners();
   }
 
   Future<void> renameProject(String name) async {
