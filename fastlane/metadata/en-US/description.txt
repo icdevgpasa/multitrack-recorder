@@ -1,0 +1,26 @@
+NagrajTo is a multitrack studio in your pocket. Record guitar, then bass, vocals and harmonies while listening to everything you've already laid down. Latency compensation and per-headphone calibration keep every take in time.
+
+RECORD
+• Overdub new tracks while hearing the previous ones
+• Metronome with count-in and adjustable tempo
+• Live headphone monitoring with reverb
+• Mic input gain and one-tap track normalize
+• Latency calibration for the speaker and each pair of headphones
+
+MIX AND EDIT
+• Volume, pan, solo and mute per track
+• Trim, fade in/out and nudge a take in time
+• Non-destructive: you can always restore the original take
+
+EXPORT
+• The whole song as M4A or 24-bit WAV
+• Every track separately (WAV) for your DAW
+• Share via AirDrop, Files and messaging apps
+
+LOOKS
+• Live waveforms, a spectrum visualizer and a background that pulses with your music
+
+PRIVACY
+Your recordings stay on your phone. No accounts, no ads, no tracking.
+
+Tip: record with headphones so the mic doesn't pick up the other tracks.

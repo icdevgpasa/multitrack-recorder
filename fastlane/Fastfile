@@ -1,0 +1,87 @@
+# NagrajTo – build and App Store upload. Instructions: docs/PUBLIKACJA.md
+#
+#   bundle exec fastlane ios screenshots   # regenerate store screenshots
+#   bundle exec fastlane ios beta          # build + upload to TestFlight
+#   bundle exec fastlane ios metadata      # texts + screenshots to App Store Connect
+#   bundle exec fastlane ios release       # build + upload + metadata (no auto submit)
+#
+# Login: App Store Connect API key in fastlane/api_key.json (git-ignored), see
+# docs/PUBLIKACJA.md. Without it fastlane asks for your Apple ID and 2FA code.
+
+default_platform(:ios)
+
+ROOT = File.expand_path("..", __dir__)
+
+platform :ios do
+  # fastlane/api_key.json: {"key_id", "issuer_id", "key_path" (.p8, relative to fastlane/)}
+  def api_key
+    path = File.join(__dir__, "api_key.json")
+    return nil unless File.exist?(path)
+
+    j = JSON.parse(File.read(path))
+    app_store_connect_api_key(
+      key_id: j.fetch("key_id"),
+      issuer_id: j.fetch("issuer_id"),
+      key_content: File.read(File.expand_path(j.fetch("key_path"), __dir__)),
+    )
+  end
+
+  def next_build_number(key)
+    latest = latest_testflight_build_number(api_key: key, initial_build_number: 0)
+    latest + 1
+  rescue StandardError
+    1
+  end
+
+  def build_ipa(build_number)
+    Dir.chdir(ROOT) do
+      sh("flutter", "clean")
+      sh("flutter", "pub", "get")
+      sh("flutter", "test")
+      sh("flutter", "build", "ipa", "--release", "--build-number=#{build_number}")
+    end
+    Dir[File.join(ROOT, "build/ios/ipa/*.ipa")].first || UI.user_error!("No .ipa built")
+  end
+
+  desc "Regenerate App Store screenshots (PL + EN, iPhone 6.9\")"
+  lane :screenshots do
+    Dir.chdir(ROOT) do
+      sh("flutter", "test", "screenshots/app_screens_test.dart")
+      sh("python3", "tool/frame_screenshots.py")
+    end
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    key = api_key
+    ipa = build_ipa(next_build_number(key))
+    upload_to_testflight(api_key: key, ipa: ipa, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Upload store texts and screenshots (no build)"
+  lane :metadata do
+    deliver(
+      api_key: api_key,
+      skip_binary_upload: true,
+      overwrite_screenshots: true,
+      force: true, # skip the HTML preview
+      submit_for_review: false,
+      precheck_include_in_app_purchases: false,
+    )
+  end
+
+  desc "Build, upload, texts and screenshots. Submit for review in App Store Connect."
+  lane :release do
+    key = api_key
+    ipa = build_ipa(next_build_number(key))
+    deliver(
+      api_key: key,
+      ipa: ipa,
+      overwrite_screenshots: true,
+      force: true,
+      submit_for_review: false,
+      automatic_release: false,
+      precheck_include_in_app_purchases: false,
+    )
+  end
+end

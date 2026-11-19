@@ -1,0 +1,10 @@
+NagrajTo is a multitrack audio recorder. No login is required and no data leaves the device.
+
+How to test:
+1. Tap "New song" and allow microphone access.
+2. Tap the red Record button. After a one-bar metronome count-in, play or sing for a few seconds, then tap it again to stop. A track with its waveform appears.
+3. Tap Record again to add a second track while the first one plays back (headphones recommended).
+4. Use the track sliders (volume, pan), S (solo) and M (mute).
+5. Tap the share icon (top right) to export the whole song (M4A/WAV) or separate tracks, and share it.
+
+The app is in English by default and in Polish when the device language is Polish.

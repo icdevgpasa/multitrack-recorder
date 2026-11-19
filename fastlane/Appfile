@@ -1,0 +1,4 @@
+app_identifier("com.icdevgpasa.nagrajto")
+# Optional: your Apple ID e-mail and team, if you don't use an API key.
+apple_id(ENV["APPLE_ID"]) if ENV["APPLE_ID"]
+team_id(ENV["TEAM_ID"]) if ENV["TEAM_ID"]
