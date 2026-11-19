@@ -947,8 +947,9 @@ class _GainChip extends StatelessWidget {
                 value: db,
                 onChanged: (v) {
                   setState(() => db = v);
-                  controller.setInputGain(v);
+                  controller.setInputGain(v, save: false);
                 },
+                onChangeEnd: controller.setInputGain,
               ),
             ],
           ),

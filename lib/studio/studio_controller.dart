@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
@@ -145,7 +146,13 @@ class StudioController extends ChangeNotifier {
 
   Future<void> _commit() async {
     notifyListeners();
-    await store.save(project);
+    try {
+      await store.save(project);
+    } on FileSystemException catch (e) {
+      // Keep the engine in step even if the disk write failed.
+      errorMessage = e.message;
+      notifyListeners();
+    }
     await _syncEngine();
   }
 
@@ -275,8 +282,15 @@ class StudioController extends ChangeNotifier {
     await _commit();
   }
 
-  Future<void> setInputGain(double db) async {
+  /// Sets the mic gain. While a slider is dragged pass `save: false`: the
+  /// engine follows at once and the song is saved when the drag ends.
+  Future<void> setInputGain(double db, {bool save = true}) async {
     project.inputGainDb = db.clamp(0.0, 36.0).roundToDouble();
+    if (!save) {
+      notifyListeners();
+      await engine.setInputGain(project.inputGainDb);
+      return;
+    }
     await _commit();
   }
 

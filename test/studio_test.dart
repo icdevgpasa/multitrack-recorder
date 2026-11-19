@@ -398,6 +398,16 @@ void main() {
     expect((await lib.create()).inputGainDb, 30);
   });
 
+  test('many quick saves do not collide', () async {
+    await c.init();
+    await Future.wait([
+      for (var db = 0; db < 20; db++) c.setInputGain(db.toDouble()),
+    ]);
+    expect((await ProjectStore(dir).load())!.inputGainDb, 19);
+    await c.setInputGain(5, save: false);
+    expect(engine.gainDb, 5);
+  });
+
   test('normalize swaps the take file and reloads it', () async {
     await c.init();
     await recordTakes(1);
