@@ -217,4 +217,78 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get micGainHint =>
       'Zagraj najgłośniej jak będziesz grać: pasek powinien dochodzić do żółtego, ale nie do czerwonego.';
+
+  @override
+  String get audioSettings => 'Ustawienia audio';
+
+  @override
+  String get monitoringTitle => 'Odsłuch na żywo';
+
+  @override
+  String get monitoringHint =>
+      'Słyszysz swój instrument w słuchawkach podczas nagrywania. Tylko ze słuchawkami: na głośniku byłoby sprzężenie.';
+
+  @override
+  String get monitoringBlocked => 'Podłącz słuchawki, żeby się słyszeć.';
+
+  @override
+  String get monitoringBluetooth =>
+      'Słuchawki Bluetooth dodają wyraźne opóźnienie; do odsłuchu najlepsze są przewodowe.';
+
+  @override
+  String get monitorVolume => 'Głośność';
+
+  @override
+  String get monitorReverb => 'Pogłos';
+
+  @override
+  String get monitoringOn => 'Włącz odsłuch';
+
+  @override
+  String get monitoringOff => 'Wyłącz odsłuch';
+
+  @override
+  String get calibrationTitle => 'Kalibracja opóźnienia';
+
+  @override
+  String get calibrationHint =>
+      'Sprawia, że nowe ścieżki trafiają idealnie w czas. Skalibruj raz dla każdego wyjścia, którego używasz.';
+
+  @override
+  String currentOutput(String name) {
+    return 'Wyjście: $name';
+  }
+
+  @override
+  String get notCalibrated => 'Jeszcze nie skalibrowane';
+
+  @override
+  String calibratedOffset(String ms) {
+    return 'Korekta: $ms ms';
+  }
+
+  @override
+  String get calibrate => 'Kalibruj';
+
+  @override
+  String get calibrating => 'Nasłuchuję kliknięć…';
+
+  @override
+  String get resetCalibration => 'Resetuj';
+
+  @override
+  String get calibrationHowTo =>
+      'Zachowaj ciszę przez 4 sekundy. Głośnik: zostaw telefon na stole i podgłośnij. Słuchawki: przyłóż słuchawkę do mikrofonu telefonu (dolna krawędź).';
+
+  @override
+  String get start => 'Start';
+
+  @override
+  String calibrationDone(String ms) {
+    return 'Skalibrowane: opóźnienie $ms ms.';
+  }
+
+  @override
+  String get calibrationFailed =>
+      'Nie słychać kliknięć. Podgłośnij i spróbuj ponownie.';
 }

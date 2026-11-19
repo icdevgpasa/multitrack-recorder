@@ -97,6 +97,37 @@ class RecordingResult {
   final double latencyCompensationSeconds;
 }
 
+/// Outcome of [MultitrackEngine.calibrateLatency].
+class CalibrationResult {
+  const CalibrationResult({
+    required this.measuredMs,
+    required this.reportedMs,
+    required this.offsetMs,
+    required this.detections,
+    required this.route,
+  });
+
+  factory CalibrationResult.fromMap(Map<Object?, Object?> m) =>
+      CalibrationResult(
+        measuredMs: (m['measuredMs']! as num).toDouble(),
+        reportedMs: (m['reportedMs']! as num).toDouble(),
+        offsetMs: (m['offsetMs']! as num).toDouble(),
+        detections: (m['detections']! as num).toInt(),
+        route: m['route'] as String? ?? '',
+      );
+
+  /// Real round trip heard by the microphone.
+  final double measuredMs;
+
+  /// What iOS reports (input + output latency).
+  final double reportedMs;
+
+  /// Correction applied on top of [reportedMs].
+  final double offsetMs;
+  final int detections;
+  final String route;
+}
+
 /// Live snapshot pushed by the engine.
 class EngineStatus {
   const EngineStatus({
@@ -108,6 +139,10 @@ class EngineStatus {
     required this.outputLevel,
     required this.beat,
     this.spectrum = const [],
+    this.route = '',
+    this.routeName = '',
+    this.monitorBlocked = false,
+    this.isCalibrating = false,
   });
 
   factory EngineStatus.fromMap(Map<Object?, Object?> m) => EngineStatus(
@@ -118,6 +153,10 @@ class EngineStatus {
     inputLevel: (m['inputLevel'] as num? ?? 0).toDouble(),
     outputLevel: (m['outputLevel'] as num? ?? 0).toDouble(),
     beat: (m['beat'] as num? ?? -1).toInt(),
+    route: m['route'] as String? ?? '',
+    routeName: m['routeName'] as String? ?? '',
+    monitorBlocked: m['monitorBlocked'] as bool? ?? false,
+    isCalibrating: m['calibrating'] as bool? ?? false,
     spectrum: [
       for (final v in (m['spectrum'] as List? ?? const []))
         (v as num).toDouble(),
@@ -151,6 +190,16 @@ class EngineStatus {
   /// Band levels 0.0 – 1.0, low to high frequency (input while recording,
   /// output otherwise). Empty when the engine sends none.
   final List<double> spectrum;
+
+  /// Stable id of the current audio output (for per-route calibration).
+  final String route;
+
+  /// Human-readable output name, e.g. "AirPods Pro" or "Speaker".
+  final String routeName;
+
+  /// Monitoring is on but muted because sound goes to the phone speaker.
+  final bool monitorBlocked;
+  final bool isCalibrating;
 }
 
 class MultitrackEngine {
@@ -183,6 +232,27 @@ class MultitrackEngine {
   /// Software gain on the microphone input, 0 – 36 dB (recording and meter).
   Future<void> setInputGain(double db) =>
       _methods.invokeMethod('setInputGain', db);
+
+  /// Hear the input live (headphones only; muted on the phone speaker).
+  /// [reverb] is the wet mix 0.0 – 1.0.
+  Future<void> setMonitoring({
+    required bool enabled,
+    double volume = 0.8,
+    double reverb = 0.2,
+  }) => _methods.invokeMethod('setMonitoring', {
+    'enabled': enabled,
+    'volume': volume,
+    'reverb': reverb,
+  });
+
+  /// Plays clicks and listens for them to measure the real round-trip
+  /// latency of the current output. The engine applies the result at once.
+  Future<CalibrationResult> calibrateLatency() async {
+    final m = await _methods.invokeMapMethod<Object?, Object?>(
+      'calibrateLatency',
+    );
+    return CalibrationResult.fromMap(m!);
+  }
 
   /// Output volume of the whole mix (0.0 – 1.0).
   Future<void> setMasterVolume(double volume) =>

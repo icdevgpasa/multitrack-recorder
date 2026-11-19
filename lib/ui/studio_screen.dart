@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/project.dart';
 import '../studio/studio_controller.dart';
+import 'audio_settings_sheet.dart';
 import 'l10n.dart';
 import 'theme.dart';
 import 'visuals.dart';
@@ -184,6 +185,13 @@ class _Header extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ),
+              IconButton(
+                tooltip: context.l10n.audioSettings,
+                onPressed: busy
+                    ? null
+                    : () => showAudioSettings(context, controller),
+                icon: const Icon(Icons.tune),
               ),
               IconButton(
                 tooltip: context.l10n.export,
@@ -711,6 +719,7 @@ class _TransportState extends State<_Transport> {
               _GainChip(controller: controller),
               const SizedBox(width: 8),
               Expanded(child: LevelMeter(level: s.inputLevel)),
+              _MonitorToggle(controller: controller),
             ],
           ),
           Row(
@@ -927,6 +936,35 @@ class _GainChip extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Quick on/off for hearing yourself; long-press opens the audio settings.
+class _MonitorToggle extends StatelessWidget {
+  const _MonitorToggle({required this.controller});
+
+  final StudioController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = controller.audio.monitorOn;
+    final blocked = on && controller.status.monitorBlocked;
+    return GestureDetector(
+      onLongPress: () => showAudioSettings(context, controller),
+      child: IconButton(
+        tooltip: on ? context.l10n.monitoringOff : context.l10n.monitoringOn,
+        onPressed: () => controller.setMonitoring(on: !on),
+        icon: Icon(
+          blocked ? Icons.headset_off : Icons.headphones,
+          size: 20,
+          color: !on
+              ? AppColors.textDim
+              : blocked
+              ? AppColors.solo
+              : AppColors.accent,
         ),
       ),
     );

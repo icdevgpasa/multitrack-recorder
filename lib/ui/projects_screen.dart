@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 
 import '../models/project.dart';
+import '../studio/audio_settings.dart';
 import '../studio/project_library.dart';
 import '../studio/studio_controller.dart';
 import 'l10n.dart';
@@ -14,10 +15,12 @@ class ProjectsScreen extends StatefulWidget {
     super.key,
     required this.library,
     required this.engine,
+    required this.settings,
   });
 
   final ProjectLibrary library;
   final MultitrackEngine engine;
+  final AudioSettingsStore settings;
 
   @override
   State<ProjectsScreen> createState() => _ProjectsScreenState();
@@ -43,6 +46,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       store: widget.library.storeFor(project.id),
       newProjectId: project.id,
       trackName: context.l10n.defaultTrackName,
+      settingsStore: widget.settings,
     );
     final init = controller.init();
     await Navigator.of(context).push(

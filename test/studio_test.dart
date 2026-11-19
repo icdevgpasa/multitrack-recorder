@@ -7,6 +7,7 @@ import 'package:multitrack_engine/multitrack_engine.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:multitrack_recorder/audio/waveform.dart';
 import 'package:multitrack_recorder/models/project.dart';
+import 'package:multitrack_recorder/studio/audio_settings.dart';
 import 'package:multitrack_recorder/studio/project_library.dart';
 import 'package:multitrack_recorder/studio/project_store.dart';
 import 'package:multitrack_recorder/ui/studio_screen.dart';
@@ -24,6 +25,24 @@ class FakeEngine implements MultitrackEngine {
   String? recordingPath;
   double master = 1;
   double gainDb = 0;
+  final monitoring = <({bool enabled, double volume, double reverb})>[];
+  final offsets = <double>[];
+  CalibrationResult? calibration;
+
+  @override
+  Future<void> setMonitoring({
+    required bool enabled,
+    double volume = 0.8,
+    double reverb = 0.2,
+  }) async =>
+      monitoring.add((enabled: enabled, volume: volume, reverb: reverb));
+
+  @override
+  Future<CalibrationResult> calibrateLatency() async {
+    final r = calibration;
+    if (r == null) throw Exception('No clicks heard');
+    return r;
+  }
 
   @override
   Future<void> setInputGain(double db) async => gainDb = db;
@@ -53,7 +72,7 @@ class FakeEngine implements MultitrackEngine {
   @override
   Future<void> setMetronome(MetronomeSettings s) async => metronome = s;
   @override
-  Future<void> setLatencyOffset(double ms) async {}
+  Future<void> setLatencyOffset(double ms) async => offsets.add(ms);
   @override
   Future<void> play({double fromSeconds = 0}) async => calls.add('play');
   @override
@@ -352,6 +371,72 @@ void main() {
     expect(t.fileName, isNot(old));
     expect(File(c.store.audioPath(old)).existsSync(), isFalse);
     expect(engine.tracks.single.path, endsWith(t.fileName));
+  });
+
+  EngineStatus routeStatus(String route) => EngineStatus(
+    isPlaying: false,
+    isRecording: false,
+    isCountingIn: false,
+    positionSeconds: 0,
+    inputLevel: 0,
+    outputLevel: 0,
+    beat: -1,
+    route: route,
+  );
+
+  test(
+    'calibration is stored per output and applied when the output changes',
+    () async {
+      final settingsFile = File('${dir.path}/settings.json');
+      final c2 = StudioController(
+        engine: engine,
+        store: ProjectStore(dir),
+        newProjectId: 'p1',
+        waveformLoader: (_) async => null,
+        settingsStore: AudioSettingsStore(settingsFile),
+      );
+      await c2.init();
+      engine.statusCtrl.add(routeStatus('Headphones:Wired'));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.offsets.last, 0);
+
+      engine.calibration = const CalibrationResult(
+        measuredMs: 41,
+        reportedMs: 30,
+        offsetMs: 11,
+        detections: 8,
+        route: 'Headphones:Wired',
+      );
+      final r = await c2.calibrate();
+      expect(r!.offsetMs, 11);
+      expect(c2.currentOffsetMs, 11);
+
+      engine.statusCtrl.add(routeStatus('BluetoothA2DPOutput:AirPods'));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.offsets.last, 0);
+      engine.statusCtrl.add(routeStatus('Headphones:Wired'));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.offsets.last, 11);
+
+      // Survives a restart.
+      final reloaded = await AudioSettingsStore(settingsFile).load();
+      expect(reloaded.latencyOffsetsMs['Headphones:Wired'], 11);
+    },
+  );
+
+  test('failed calibration keeps the old value and reports an error', () async {
+    await c.init();
+    engine.calibration = null;
+    expect(await c.calibrate(), isNull);
+    expect(c.errorMessage, contains('No clicks'));
+    expect(c.calibrating, isFalse);
+  });
+
+  test('monitoring settings reach the engine', () async {
+    await c.init();
+    expect(engine.monitoring.last.enabled, isFalse);
+    await c.setMonitoring(on: true, reverb: 0.5);
+    expect(engine.monitoring.last, (enabled: true, volume: 0.8, reverb: 0.5));
   });
 }
 
