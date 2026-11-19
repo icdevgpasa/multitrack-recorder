@@ -10,6 +10,7 @@ class Track {
     this.volume = 0.9,
     this.pan = 0,
     this.muted = false,
+    this.solo = false,
     this.colorIndex = 0,
   });
 
@@ -21,6 +22,7 @@ class Track {
     volume: (j['volume'] as num?)?.toDouble() ?? 0.9,
     pan: (j['pan'] as num?)?.toDouble() ?? 0,
     muted: j['muted'] as bool? ?? false,
+    solo: j['solo'] as bool? ?? false,
     colorIndex: j['colorIndex'] as int? ?? 0,
   );
 
@@ -33,6 +35,7 @@ class Track {
   double volume;
   double pan;
   bool muted;
+  bool solo;
   int colorIndex;
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +46,7 @@ class Track {
     'volume': volume,
     'pan': pan,
     'muted': muted,
+    'solo': solo,
     'colorIndex': colorIndex,
   };
 }
@@ -55,6 +59,7 @@ class Project {
     this.beatsPerBar = 4,
     this.metronomeOn = true,
     this.countInBars = 1,
+    this.masterVolume = 1.0,
     List<Track>? tracks,
   }) : tracks = tracks ?? [];
 
@@ -65,6 +70,7 @@ class Project {
     beatsPerBar: j['beatsPerBar'] as int? ?? 4,
     metronomeOn: j['metronomeOn'] as bool? ?? true,
     countInBars: j['countInBars'] as int? ?? 1,
+    masterVolume: (j['masterVolume'] as num?)?.toDouble() ?? 1.0,
     tracks: [
       for (final t in (j['tracks'] as List? ?? const []))
         Track.fromJson(Map<String, dynamic>.from(t as Map)),
@@ -77,7 +83,13 @@ class Project {
   int beatsPerBar;
   bool metronomeOn;
   int countInBars;
+  double masterVolume;
   final List<Track> tracks;
+
+  bool get anySolo => tracks.any((t) => t.solo);
+
+  /// Whether [t] is heard: not muted, and soloed when any track is soloed.
+  bool isAudible(Track t) => !t.muted && (!anySolo || t.solo);
 
   /// Length of the longest track.
   double get lengthSeconds =>
@@ -90,6 +102,7 @@ class Project {
     'beatsPerBar': beatsPerBar,
     'metronomeOn': metronomeOn,
     'countInBars': countInBars,
+    'masterVolume': masterVolume,
     'tracks': [for (final t in tracks) t.toJson()],
   };
 }

@@ -33,6 +33,7 @@ class StudioController extends ChangeNotifier {
 
   bool get isPlaying => status.isPlaying;
   bool get isRecording => _pendingTrackId != null;
+  bool exporting = false;
 
   Future<void> init() async {
     project = await store.load() ?? Project(id: newProjectId);
@@ -81,9 +82,10 @@ class StudioController extends ChangeNotifier {
           path: store.audioPath(t.fileName),
           volume: t.volume,
           pan: t.pan,
-          muted: t.muted,
+          muted: !project.isAudible(t),
         ),
     ]);
+    await engine.setMasterVolume(project.masterVolume);
   }
 
   Future<void> _commit() async {
@@ -183,6 +185,104 @@ class StudioController extends ChangeNotifier {
     await _commit();
   }
 
+  Future<void> toggleSolo(Track t) async {
+    t.solo = !t.solo;
+    await _commit();
+  }
+
+  Future<void> setPan(Track t, double pan) async {
+    t.pan = pan.clamp(-1.0, 1.0);
+    await _commit();
+  }
+
+  Future<void> setMasterVolume(double v) async {
+    project.masterVolume = v.clamp(0.0, 1.0);
+    await _commit();
+  }
+
+  Future<void> renameProject(String name) async {
+    if (name.trim().isEmpty) return;
+    project.name = name.trim();
+    await _commit();
+  }
+
+  // Export ------------------------------------------------------------------
+
+  String get _exportDir => store.audioPath('exports');
+
+  /// Renders the whole song as heard (mute/solo/volume/pan/master).
+  /// Returns the file path, or null on error ([errorMessage] is set).
+  Future<String?> exportMix(ExportFormat format) async {
+    final path = '$_exportDir/${safeFileName(project.name)}.${format.name}';
+    final ok = await _export(
+      () => engine.exportMix(
+        tracks: [
+          for (final t in project.tracks)
+            EngineTrack(
+              id: t.id,
+              path: store.audioPath(t.fileName),
+              volume: t.volume,
+              pan: t.pan,
+              muted: !project.isAudible(t),
+            ),
+        ],
+        outputPath: path,
+        format: format,
+        masterVolume: project.masterVolume,
+      ),
+    );
+    return ok ? path : null;
+  }
+
+  /// Each track on its own, raw (full volume, centre), for use in a DAW.
+  Future<List<String>> exportStems(ExportFormat format) async {
+    final paths = <String>[];
+    final song = safeFileName(project.name);
+    for (final (i, t) in project.tracks.indexed) {
+      final path =
+          '$_exportDir/$song - ${(i + 1).toString().padLeft(2, '0')} ${safeFileName(t.name)}.${format.name}';
+      final ok = await _export(
+        () => engine.exportMix(
+          tracks: [EngineTrack(id: t.id, path: store.audioPath(t.fileName))],
+          outputPath: path,
+          format: format,
+        ),
+      );
+      if (!ok) return [];
+      paths.add(path);
+    }
+    return paths;
+  }
+
+  Future<bool> _export(Future<double> Function() run) async {
+    if (isRecording) return false;
+    if (isPlaying) await engine.stop();
+    exporting = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await run();
+      return true;
+    } catch (e) {
+      errorMessage = '$e';
+      return false;
+    } finally {
+      exporting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Stops audio and unloads this project's tracks (leaving the screen).
+  Future<void> close() async {
+    if (isRecording) await stopRecording();
+    await _sub?.cancel();
+    _sub = null;
+    if (phase == StudioPhase.ready) {
+      await engine.stop();
+      await engine.setTracks(const []);
+    }
+  }
+
   Future<void> rename(Track t, String name) async {
     if (name.trim().isEmpty) return;
     t.name = name.trim();
@@ -201,4 +301,10 @@ class StudioController extends ChangeNotifier {
     _sub?.cancel();
     super.dispose();
   }
+}
+
+/// Turns a song/track name into something safe for a file name.
+String safeFileName(String name) {
+  final cleaned = name.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_').trim();
+  return cleaned.isEmpty ? 'utwor' : cleaned;
 }

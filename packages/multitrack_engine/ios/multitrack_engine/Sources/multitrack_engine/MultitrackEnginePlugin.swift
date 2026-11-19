@@ -37,6 +37,28 @@ public class MultitrackEnginePlugin: NSObject, FlutterPlugin, FlutterStreamHandl
       case "setLatencyOffset":
         engine.setLatencyOffset(ms: (call.arguments as? NSNumber)?.doubleValue ?? 0)
         result(nil)
+      case "setMasterVolume":
+        engine.setMasterVolume((call.arguments as? NSNumber)?.floatValue ?? 1)
+        result(nil)
+      case "exportMix":
+        let tracks = (args["tracks"] as? [[String: Any]] ?? []).map(TrackConfig.init)
+        let master = (args["masterVolume"] as? NSNumber)?.floatValue ?? 1
+        let format = ExportFormat(rawValue: args["format"] as? String ?? "") ?? .m4a
+        guard let path = args["path"] as? String else {
+          result(FlutterError(code: "args", message: "path required", details: nil))
+          return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+          do {
+            let duration = try MixExporter.export(
+              tracks: tracks, masterVolume: master, to: path, format: format)
+            DispatchQueue.main.async { result(["path": path, "duration": duration]) }
+          } catch {
+            DispatchQueue.main.async {
+              result(FlutterError(code: "export", message: error.localizedDescription, details: nil))
+            }
+          }
+        }
       case "play":
         try engine.play(from: (args["from"] as? NSNumber)?.doubleValue ?? 0)
         result(nil)

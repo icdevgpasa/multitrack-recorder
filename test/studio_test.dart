@@ -3,9 +3,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
-import 'package:multitrack_recorder/main.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:multitrack_recorder/models/project.dart';
+import 'package:multitrack_recorder/studio/project_library.dart';
 import 'package:multitrack_recorder/studio/project_store.dart';
+import 'package:multitrack_recorder/ui/projects_screen.dart';
+import 'package:multitrack_recorder/ui/studio_screen.dart';
+import 'package:multitrack_recorder/ui/theme.dart';
 import 'package:multitrack_recorder/studio/studio_controller.dart';
 
 class FakeEngine implements MultitrackEngine {
@@ -16,6 +20,23 @@ class FakeEngine implements MultitrackEngine {
   List<EngineTrack> tracks = [];
   MetronomeSettings? metronome;
   String? recordingPath;
+  double master = 1;
+  final exports =
+      <({List<EngineTrack> tracks, String path, ExportFormat format})>[];
+
+  @override
+  Future<void> setMasterVolume(double v) async => master = v;
+
+  @override
+  Future<double> exportMix({
+    required List<EngineTrack> tracks,
+    required String outputPath,
+    ExportFormat format = ExportFormat.m4a,
+    double masterVolume = 1.0,
+  }) async {
+    exports.add((tracks: tracks, path: outputPath, format: format));
+    return 1;
+  }
 
   @override
   Future<bool> requestPermission() async => permission;
@@ -136,7 +157,12 @@ void main() {
 
   testWidgets('studio screen renders and records', (tester) async {
     await tester.runAsync(c.init);
-    await tester.pumpWidget(MultitrackApp(controller: c));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(),
+        home: StudioScreen(controller: c),
+      ),
+    );
     expect(find.text('120 BPM'), findsOneWidget);
     expect(find.textContaining('Nagraj pierwszą'), findsOneWidget);
 
@@ -159,5 +185,71 @@ void main() {
     await tester.runAsync(c.stopRecording);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Ścieżka 1'), findsOneWidget);
+  });
+
+  Future<void> recordTakes(int n) async {
+    for (var i = 0; i < n; i++) {
+      await c.startRecording();
+      await c.stopRecording();
+    }
+  }
+
+  test('solo silences the other tracks in the engine and in the mix', () async {
+    await c.init();
+    await recordTakes(3);
+    await c.toggleSolo(c.project.tracks[1]);
+    expect(engine.tracks.map((t) => t.muted), [true, false, true]);
+
+    await c.toggleMute(c.project.tracks[1]);
+    expect(engine.tracks.every((t) => t.muted), isTrue);
+  });
+
+  test('pan and master volume reach the engine', () async {
+    await c.init();
+    await recordTakes(1);
+    await c.setPan(c.project.tracks.single, -0.5);
+    await c.setMasterVolume(0.7);
+    expect(engine.tracks.single.pan, -0.5);
+    expect(engine.master, 0.7);
+  });
+
+  test('export mix and stems', () async {
+    await c.init();
+    await recordTakes(2);
+    await c.renameProject('Moja/piosenka');
+    await c.rename(c.project.tracks[0], 'Gitara');
+
+    final mix = await c.exportMix(ExportFormat.m4a);
+    expect(mix, endsWith('/exports/Moja_piosenka.m4a'));
+    expect(engine.exports.last.tracks, hasLength(2));
+
+    final stems = await c.exportStems(ExportFormat.wav);
+    expect(stems, hasLength(2));
+    expect(stems.first, endsWith('/exports/Moja_piosenka - 01 Gitara.wav'));
+    expect(engine.exports.last.tracks.single.volume, 1.0);
+  });
+
+  test('project library: create, list, delete', () async {
+    final lib = ProjectLibrary(Directory('${dir.path}/projects'));
+    expect(await lib.list(), isEmpty);
+    final a = await lib.create();
+    final b = await lib.create();
+    expect(b.name, 'Utwór 2');
+    expect(
+      (await lib.list()).map((s) => s.project.id),
+      containsAll([a.id, b.id]),
+    );
+    await lib.delete(a.id);
+    expect((await lib.list()).single.project.id, b.id);
+  });
+
+  test('polish plural for track count', () {
+    expect(trackCountLabel(1), '1 ścieżka');
+    expect(trackCountLabel(3), '3 ścieżki');
+    expect(trackCountLabel(5), '5 ścieżek');
+    expect(trackCountLabel(12), '12 ścieżek');
+    expect(trackCountLabel(22), '22 ścieżki');
+    expect(panLabel(-0.4), 'L40');
+    expect(panLabel(0), 'C');
   });
 }

@@ -41,12 +41,16 @@ enum EngineError: LocalizedError {
   case noInput
   case notRecording
   case cannotOpen(String)
+  case nothingToExport
+  case renderFailed
 
   var errorDescription: String? {
     switch self {
     case .noInput: return "No audio input available (microphone permission?)"
     case .notRecording: return "Not recording"
     case .cannotOpen(let p): return "Cannot open audio file: \(p)"
+    case .nothingToExport: return "Nothing to export (all tracks muted?)"
+    case .renderFailed: return "Rendering the mix failed"
     }
   }
 }
@@ -206,6 +210,10 @@ final class AudioEngine {
     if config != metronome { clickBar = nil }
     metronome = config
     clickNode.volume = config.volume
+  }
+
+  func setMasterVolume(_ v: Float) {
+    engine.mainMixerNode.outputVolume = v
   }
 
   func setLatencyOffset(ms: Double) {
