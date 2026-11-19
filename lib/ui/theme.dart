@@ -9,6 +9,7 @@ class AppColors {
   static const textDim = Color(0xFF8D91B3);
   static const record = Color(0xFFFF3B5C);
   static const accent = Color(0xFF7C5CFF);
+  static const solo = Color(0xFFFFD23F);
 
   /// Per-track colours, cycled.
   static const tracks = [

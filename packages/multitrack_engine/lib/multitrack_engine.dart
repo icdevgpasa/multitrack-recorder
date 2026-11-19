@@ -8,6 +8,15 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+/// File type for exported audio.
+enum ExportFormat {
+  /// Compressed AAC, small and easy to share.
+  m4a,
+
+  /// 24-bit PCM, lossless (for further work in a DAW).
+  wav,
+}
+
 /// One track the engine should play back during playback or overdubbing.
 class EngineTrack {
   const EngineTrack({
@@ -161,6 +170,27 @@ class MultitrackEngine {
   /// calibration on a specific device/interface.
   Future<void> setLatencyOffset(double milliseconds) =>
       _methods.invokeMethod('setLatencyOffset', milliseconds);
+
+  /// Output volume of the whole mix (0.0 – 1.0).
+  Future<void> setMasterVolume(double volume) =>
+      _methods.invokeMethod('setMasterVolume', volume);
+
+  /// Renders [tracks] (offline, faster than real time) into a stereo file at
+  /// [outputPath]. Muted tracks are left out. Returns the length in seconds.
+  Future<double> exportMix({
+    required List<EngineTrack> tracks,
+    required String outputPath,
+    ExportFormat format = ExportFormat.m4a,
+    double masterVolume = 1.0,
+  }) async {
+    final m = await _methods.invokeMapMethod<Object?, Object?>('exportMix', {
+      'tracks': tracks.map((t) => t.toMap()).toList(),
+      'path': outputPath,
+      'format': format.name,
+      'masterVolume': masterVolume,
+    });
+    return (m!['duration']! as num).toDouble();
+  }
 
   Future<void> play({double fromSeconds = 0}) =>
       _methods.invokeMethod('play', {'from': fromSeconds});

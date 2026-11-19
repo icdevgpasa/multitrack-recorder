@@ -13,7 +13,7 @@ a potem eksport całego utworu albo pojedynczych ścieżek. Najpierw iOS, Androi
 ## Plan
 
 1. **Rdzeń nagrywania** – nagrywanie z odsłuchem poprzednich ścieżek, metronom z odliczaniem, kompensacja opóźnienia. ✅ (wersja 1)
-2. **Mikser i eksport** – głośność/panorama/mute/solo, lista projektów, eksport miksu i pojedynczych ścieżek.
+2. **Mikser i eksport** – głośność/panorama/mute/solo, master, lista utworów, eksport miksu (M4A/WAV) i pojedynczych ścieżek + udostępnianie. ✅ (wersja 1)
 3. **Wygląd i efekty wizualne** – przebiegi fali na żywo, wizualizator spektrum, animacje.
 4. **Testy na urządzeniach i publikacja** – App Store, potem Google Play.
 
