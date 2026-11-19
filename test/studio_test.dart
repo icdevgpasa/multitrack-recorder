@@ -23,6 +23,10 @@ class FakeEngine implements MultitrackEngine {
   MetronomeSettings? metronome;
   String? recordingPath;
   double master = 1;
+  double gainDb = 0;
+
+  @override
+  Future<void> setInputGain(double db) async => gainDb = db;
   final exports =
       <({List<EngineTrack> tracks, String path, ExportFormat format})>[];
 
@@ -89,6 +93,10 @@ void main() {
       newProjectId: 'p1',
       idGenerator: () => 'id${n++}',
       waveformLoader: (path) async => Waveform(Float32List.fromList([0.5, 1])),
+      normalizer: (src, dst) async {
+        File(dst).writeAsStringSync('louder');
+        return 2.0;
+      },
     );
   });
 
@@ -297,6 +305,32 @@ void main() {
     await c2.seek(10);
     await c2.seek(-1);
     expect(played, [3.5, 0]);
+  });
+
+  test('input gain reaches the engine and new songs inherit it', () async {
+    await c.init();
+    expect(engine.gainDb, 12);
+    await c.setInputGain(24.4);
+    expect(engine.gainDb, 24);
+
+    final lib = ProjectLibrary(dir.parent.createTempSync('lib'));
+    final first = await lib.create();
+    final store = lib.storeFor(first.id);
+    first.inputGainDb = 30;
+    await store.save(first);
+    expect((await lib.create()).inputGainDb, 30);
+  });
+
+  test('normalize swaps the take file and reloads it', () async {
+    await c.init();
+    await recordTakes(1);
+    final t = c.project.tracks.single;
+    final old = t.fileName;
+    File(c.store.audioPath(old)).writeAsStringSync('quiet');
+    expect(await c.normalizeTrack(t), isTrue);
+    expect(t.fileName, isNot(old));
+    expect(File(c.store.audioPath(old)).existsSync(), isFalse);
+    expect(engine.tracks.single.path, endsWith(t.fileName));
   });
 }
 

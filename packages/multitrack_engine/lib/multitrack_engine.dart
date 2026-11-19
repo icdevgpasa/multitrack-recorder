@@ -180,6 +180,10 @@ class MultitrackEngine {
   Future<void> setLatencyOffset(double milliseconds) =>
       _methods.invokeMethod('setLatencyOffset', milliseconds);
 
+  /// Software gain on the microphone input, 0 – 36 dB (recording and meter).
+  Future<void> setInputGain(double db) =>
+      _methods.invokeMethod('setInputGain', db);
+
   /// Output volume of the whole mix (0.0 – 1.0).
   Future<void> setMasterVolume(double volume) =>
       _methods.invokeMethod('setMasterVolume', volume);

@@ -46,6 +46,8 @@ class ProjectLibrary {
     final project = Project(
       id: _newId(),
       name: name ?? 'Utwór ${existing.length + 1}',
+      // The mic doesn't change between songs: keep the last gain used.
+      inputGainDb: existing.isEmpty ? 12 : existing.first.project.inputGainDb,
     );
     await storeFor(project.id).save(project);
     return project;

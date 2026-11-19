@@ -456,12 +456,19 @@ class _TrackTileState extends State<TrackTile> {
                         color: AppColors.textDim,
                         size: 20,
                       ),
-                      onSelected: (v) =>
-                          v == 'rename' ? _rename(context) : c.deleteTrack(t),
+                      onSelected: (v) => switch (v) {
+                        'rename' => _rename(context),
+                        'louder' => _normalize(context),
+                        _ => c.deleteTrack(t),
+                      },
                       itemBuilder: (_) => const [
                         PopupMenuItem(
                           value: 'rename',
                           child: Text('Zmień nazwę'),
+                        ),
+                        PopupMenuItem(
+                          value: 'louder',
+                          child: Text('Podgłośnij (normalizuj)'),
                         ),
                         PopupMenuItem(
                           value: 'delete',
@@ -554,6 +561,20 @@ class _TrackTileState extends State<TrackTile> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _normalize(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final done = await widget.controller.normalizeTrack(widget.track);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          done
+              ? 'Ścieżka „${widget.track.name}” jest teraz głośniejsza.'
+              : 'Ta ścieżka jest już wystarczająco głośna.',
+        ),
       ),
     );
   }
@@ -675,7 +696,7 @@ class _TransportState extends State<_Transport> {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.mic, size: 16, color: AppColors.textDim),
+              _GainChip(controller: controller),
               const SizedBox(width: 8),
               Expanded(child: LevelMeter(level: s.inputLevel)),
             ],
@@ -810,6 +831,90 @@ class _RecordingTile extends StatelessWidget {
             playheadSeconds: s.positionSeconds >= 0 ? s.positionSeconds : null,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shows the mic gain; tap to adjust it while watching the input meter.
+class _GainChip extends StatelessWidget {
+  const _GainChip({required this.controller});
+
+  final StudioController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final db = controller.project.inputGainDb.round();
+    return Semantics(
+      button: true,
+      label: 'Wzmocnienie mikrofonu $db dB',
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: controller.isRecording ? null : () => _edit(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.mic, size: 14, color: AppColors.textDim),
+              const SizedBox(width: 4),
+              Text(
+                '+$db dB',
+                style: const TextStyle(color: AppColors.text, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _edit(BuildContext context) async {
+    var db = controller.project.inputGainDb;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Wzmocnienie mikrofonu: +${db.round()} dB',
+                style: const TextStyle(color: AppColors.text, fontSize: 18),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Zagraj najgłośniej jak będziesz grać: pasek powinien dochodzić '
+                'do żółtego, ale nie do czerwonego.',
+                style: TextStyle(color: AppColors.textDim, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) =>
+                    LevelMeter(level: controller.status.inputLevel, height: 10),
+              ),
+              Slider(
+                min: 0,
+                max: 36,
+                divisions: 36,
+                value: db,
+                onChanged: (v) {
+                  setState(() => db = v);
+                  controller.setInputGain(v);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -37,6 +37,9 @@ public class MultitrackEnginePlugin: NSObject, FlutterPlugin, FlutterStreamHandl
       case "setLatencyOffset":
         engine.setLatencyOffset(ms: (call.arguments as? NSNumber)?.doubleValue ?? 0)
         result(nil)
+      case "setInputGain":
+        engine.setInputGain(db: (call.arguments as? NSNumber)?.doubleValue ?? 12)
+        result(nil)
       case "setMasterVolume":
         engine.setMasterVolume((call.arguments as? NSNumber)?.floatValue ?? 1)
         result(nil)
