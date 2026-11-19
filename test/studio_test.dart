@@ -150,6 +150,30 @@ void main() {
     await c.startRecording();
     await c.stopRecording();
     expect(c.project.tracks, isEmpty);
+    expect(c.recordingProblem, isNull);
+  });
+
+  test('an empty take after the count-in is reported', () async {
+    engine.takeSeconds = 0;
+    await c.init();
+    await c.startRecording();
+    engine.statusCtrl.add(
+      const EngineStatus(
+        isPlaying: true,
+        isRecording: true,
+        isCountingIn: false,
+        positionSeconds: 3,
+        inputLevel: 0,
+        outputLevel: 0,
+        beat: 1,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await c.stopRecording();
+    expect(c.project.tracks, isEmpty);
+    expect(c.recordingProblem, '');
+    c.clearRecordingProblem();
+    expect(c.recordingProblem, isNull);
   });
 
   test('mute and bpm reach the engine', () async {

@@ -27,6 +27,42 @@ class _StudioScreenState extends State<StudioScreen> {
   StudioController get controller => widget.controller;
 
   @override
+  void initState() {
+    super.initState();
+    controller.addListener(_showRecordingProblem);
+  }
+
+  @override
+  void didUpdateWidget(StudioScreen old) {
+    super.didUpdateWidget(old);
+    if (old.controller != controller) {
+      old.controller.removeListener(_showRecordingProblem);
+      controller.addListener(_showRecordingProblem);
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.removeListener(_showRecordingProblem);
+    super.dispose();
+  }
+
+  void _showRecordingProblem() {
+    final problem = controller.recordingProblem;
+    if (problem == null || !mounted) return;
+    controller.clearRecordingProblem();
+    final l = context.l10n;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text(
+          problem.isEmpty ? l.takeEmpty : l.recordingFailed(problem),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: ListenableBuilder(

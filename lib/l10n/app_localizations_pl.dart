@@ -340,4 +340,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String editApplied(String name) {
     return 'Zapisano zmiany w „$name”.';
   }
+
+  @override
+  String get takeEmpty =>
+      'Nic się nie nagrało: z mikrofonu nie dochodził dźwięk. Spróbuj ponownie, a jeśli się powtórzy, uruchom aplikację od nowa.';
+
+  @override
+  String recordingFailed(String error) {
+    return 'Nagrywanie nie powiodło się: $error';
+  }
 }

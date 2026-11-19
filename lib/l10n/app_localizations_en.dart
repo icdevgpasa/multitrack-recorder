@@ -337,4 +337,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String editApplied(String name) {
     return 'Changes saved to \"$name\".';
   }
+
+  @override
+  String get takeEmpty =>
+      'Nothing was recorded: no sound came from the microphone. Try again; if it repeats, restart the app.';
+
+  @override
+  String recordingFailed(String error) {
+    return 'Recording failed: $error';
+  }
 }
