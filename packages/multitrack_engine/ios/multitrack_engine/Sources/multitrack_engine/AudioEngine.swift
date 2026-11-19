@@ -86,6 +86,7 @@ final class AudioEngine {
   private var appliedLatency: Double = 0
   private var inputPeak: Float = 0
   private var outputPeak: Float = 0
+  private let spectrum = SpectrumAnalyzer()
 
   init() {
     let nc = NotificationCenter.default
@@ -146,6 +147,11 @@ final class AudioEngine {
       let p = Self.peak(buffer)
       self.lock.lock()
       self.outputPeak = max(self.outputPeak, p)
+      // While recording the spectrum follows the input instead.
+      if self.writer == nil, let ch = buffer.floatChannelData {
+        self.spectrum.process(
+          ch[0], count: Int(buffer.frameLength), sampleRate: buffer.format.sampleRate)
+      }
       self.lock.unlock()
     }
   }
@@ -328,6 +334,9 @@ final class AudioEngine {
     defer { lock.unlock() }
     inputPeak = max(inputPeak, p)
     guard let writer = writer else { return }
+    if let ch = buffer.floatChannelData {
+      spectrum.process(ch[0], count: Int(buffer.frameLength), sampleRate: buffer.format.sampleRate)
+    }
 
     var skip: AVAudioFrameCount = 0
     if framesWritten == 0 && when.isHostTimeValid {
@@ -364,6 +373,8 @@ final class AudioEngine {
     let inPeak = inputPeak
     let outPeak = outputPeak
     let recording = writer != nil
+    if !recording && !isPlaying { spectrum.decay() }
+    let bands = spectrum.levels.map { Double($0) }
     inputPeak = 0
     outputPeak = 0
     lock.unlock()
@@ -390,6 +401,7 @@ final class AudioEngine {
       "inputLevel": Double(inPeak),
       "outputLevel": Double(outPeak),
       "beat": beat,
+      "spectrum": bands,
     ]
   }
 
