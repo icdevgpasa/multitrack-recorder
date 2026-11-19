@@ -291,4 +291,53 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get calibrationFailed =>
       'Nie słychać kliknięć. Podgłośnij i spróbuj ponownie.';
+
+  @override
+  String get editTrack => 'Edytuj';
+
+  @override
+  String editTrackTitle(String name) {
+    return 'Edycja: $name';
+  }
+
+  @override
+  String get trimTitle => 'Przytnij';
+
+  @override
+  String get trimHint =>
+      'Przeciągnij końce, żeby wyciąć ciszę lub pomyłki na początku i końcu.';
+
+  @override
+  String get fadeIn => 'Wejście (fade in)';
+
+  @override
+  String get fadeOut => 'Wyciszenie (fade out)';
+
+  @override
+  String get shiftTitle => 'Przesuń w czasie';
+
+  @override
+  String get shiftHint => 'Dopasuj nagranie do rytmu. Plus to później.';
+
+  @override
+  String shiftValue(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String get beatShort => 'miara';
+
+  @override
+  String get apply => 'Zastosuj';
+
+  @override
+  String get restoreOriginal => 'Przywróć oryginał';
+
+  @override
+  String get editFailed => 'Ze ścieżki nic by nie zostało.';
+
+  @override
+  String editApplied(String name) {
+    return 'Zapisano zmiany w „$name”.';
+  }
 }

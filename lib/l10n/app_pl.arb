@@ -77,5 +77,19 @@
   "calibrationHowTo": "Zachowaj ciszę przez 4 sekundy. Głośnik: zostaw telefon na stole i podgłośnij. Słuchawki: przyłóż słuchawkę do mikrofonu telefonu (dolna krawędź).",
   "start": "Start",
   "calibrationDone": "Skalibrowane: opóźnienie {ms} ms.",
-  "calibrationFailed": "Nie słychać kliknięć. Podgłośnij i spróbuj ponownie."
+  "calibrationFailed": "Nie słychać kliknięć. Podgłośnij i spróbuj ponownie.",
+  "editTrack": "Edytuj",
+  "editTrackTitle": "Edycja: {name}",
+  "trimTitle": "Przytnij",
+  "trimHint": "Przeciągnij końce, żeby wyciąć ciszę lub pomyłki na początku i końcu.",
+  "fadeIn": "Wejście (fade in)",
+  "fadeOut": "Wyciszenie (fade out)",
+  "shiftTitle": "Przesuń w czasie",
+  "shiftHint": "Dopasuj nagranie do rytmu. Plus to później.",
+  "shiftValue": "{value} ms",
+  "beatShort": "miara",
+  "apply": "Zastosuj",
+  "restoreOriginal": "Przywróć oryginał",
+  "editFailed": "Ze ścieżki nic by nie zostało.",
+  "editApplied": "Zapisano zmiany w „{name}”."
 }

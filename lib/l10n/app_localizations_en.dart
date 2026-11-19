@@ -288,4 +288,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get calibrationFailed =>
       'Couldn\'t hear the clicks. Turn the volume up and try again.';
+
+  @override
+  String get editTrack => 'Edit';
+
+  @override
+  String editTrackTitle(String name) {
+    return 'Edit: $name';
+  }
+
+  @override
+  String get trimTitle => 'Trim';
+
+  @override
+  String get trimHint =>
+      'Drag the ends to cut silence or mistakes at the start and end.';
+
+  @override
+  String get fadeIn => 'Fade in';
+
+  @override
+  String get fadeOut => 'Fade out';
+
+  @override
+  String get shiftTitle => 'Move in time';
+
+  @override
+  String get shiftHint => 'Line the take up with the beat. Positive is later.';
+
+  @override
+  String shiftValue(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String get beatShort => 'beat';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
+  String get restoreOriginal => 'Restore original';
+
+  @override
+  String get editFailed => 'Nothing would be left of the track.';
+
+  @override
+  String editApplied(String name) {
+    return 'Changes saved to \"$name\".';
+  }
 }

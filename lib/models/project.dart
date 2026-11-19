@@ -1,6 +1,8 @@
 /// Song project: tempo settings plus the recorded tracks.
 library;
 
+import '../audio/track_edit.dart';
+
 class Track {
   Track({
     required this.id,
@@ -12,6 +14,9 @@ class Track {
     this.muted = false,
     this.solo = false,
     this.colorIndex = 0,
+    this.edit,
+    this.originalFileName,
+    this.originalDurationSeconds,
   });
 
   factory Track.fromJson(Map<String, dynamic> j) => Track(
@@ -24,6 +29,11 @@ class Track {
     muted: j['muted'] as bool? ?? false,
     solo: j['solo'] as bool? ?? false,
     colorIndex: j['colorIndex'] as int? ?? 0,
+    edit: j['edit'] == null
+        ? null
+        : TrackEdit.fromJson(Map<String, dynamic>.from(j['edit'] as Map)),
+    originalFileName: j['originalFileName'] as String?,
+    originalDurationSeconds: (j['originalDurationSeconds'] as num?)?.toDouble(),
   );
 
   final String id;
@@ -31,12 +41,21 @@ class Track {
 
   /// File name relative to the project's folder.
   String fileName;
-  final double durationSeconds;
+  double durationSeconds;
   double volume;
   double pan;
   bool muted;
   bool solo;
   int colorIndex;
+
+  /// Current edit (trim, shift, fades), applied to [originalFileName].
+  TrackEdit? edit;
+
+  /// The untouched recording, kept while the track is edited.
+  String? originalFileName;
+  double? originalDurationSeconds;
+
+  bool get isEdited => originalFileName != null;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -48,6 +67,9 @@ class Track {
     'muted': muted,
     'solo': solo,
     'colorIndex': colorIndex,
+    'edit': ?edit?.toJson(),
+    'originalFileName': ?originalFileName,
+    'originalDurationSeconds': ?originalDurationSeconds,
   };
 }
 

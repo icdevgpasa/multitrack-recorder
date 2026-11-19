@@ -7,6 +7,7 @@ import '../studio/studio_controller.dart';
 import 'audio_settings_sheet.dart';
 import 'l10n.dart';
 import 'theme.dart';
+import 'track_editor_sheet.dart';
 import 'visuals.dart';
 import 'widgets.dart';
 
@@ -447,6 +448,15 @@ class _TrackTileState extends State<TrackTile> {
                         ),
                       ),
                     ),
+                    if (t.isEdited)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(
+                          Icons.content_cut,
+                          size: 12,
+                          color: AppColors.textDim,
+                        ),
+                      ),
                     Text(
                       formatTime(t.durationSeconds),
                       style: const TextStyle(
@@ -479,11 +489,17 @@ class _TrackTileState extends State<TrackTile> {
                         size: 20,
                       ),
                       onSelected: (v) => switch (v) {
+                        'edit' => showTrackEditor(context, c, t),
                         'rename' => _rename(context),
                         'louder' => _normalize(context),
                         _ => c.deleteTrack(t),
                       },
                       itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          enabled: !c.isRecording,
+                          child: Text(context.l10n.editTrack),
+                        ),
                         PopupMenuItem(
                           value: 'rename',
                           child: Text(context.l10n.rename),
