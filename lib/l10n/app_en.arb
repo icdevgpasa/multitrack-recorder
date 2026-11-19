@@ -189,5 +189,40 @@
       }
     }
   },
-  "calibrationFailed": "Couldn't hear the clicks. Turn the volume up and try again."
+  "calibrationFailed": "Couldn't hear the clicks. Turn the volume up and try again.",
+  "editTrack": "Edit",
+  "editTrackTitle": "Edit: {name}",
+  "@editTrackTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "trimTitle": "Trim",
+  "trimHint": "Drag the ends to cut silence or mistakes at the start and end.",
+  "fadeIn": "Fade in",
+  "fadeOut": "Fade out",
+  "shiftTitle": "Move in time",
+  "shiftHint": "Line the take up with the beat. Positive is later.",
+  "shiftValue": "{value} ms",
+  "@shiftValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "beatShort": "beat",
+  "apply": "Apply",
+  "restoreOriginal": "Restore original",
+  "editFailed": "Nothing would be left of the track.",
+  "editApplied": "Changes saved to \"{name}\".",
+  "@editApplied": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

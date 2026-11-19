@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 
 import '../audio/normalize.dart';
+import '../audio/track_edit.dart';
 import '../audio/waveform.dart';
 import '../models/project.dart';
 import 'audio_settings.dart';
@@ -20,10 +22,13 @@ class StudioController extends ChangeNotifier {
     String Function()? idGenerator,
     Future<Waveform?> Function(String path)? waveformLoader,
     Future<double?> Function(String src, String dst)? normalizer,
+    Future<double?> Function(String src, String dst, TrackEdit edit)?
+    trackEditor,
     String Function(int number)? trackName,
     AudioSettingsStore? settingsStore,
   }) : _loadWaveform = waveformLoader ?? Waveform.load,
        _normalize = normalizer ?? normalizeWav,
+       _renderEdit = trackEditor ?? renderTrackEdit,
        _trackName = trackName ?? ((n) => 'Track $n'),
        settingsStore = settingsStore ?? AudioSettingsStore.memory(),
        _newId =
@@ -36,6 +41,8 @@ class StudioController extends ChangeNotifier {
   final String Function() _newId;
   final Future<Waveform?> Function(String path) _loadWaveform;
   final Future<double?> Function(String src, String dst) _normalize;
+  final Future<double?> Function(String src, String dst, TrackEdit edit)
+  _renderEdit;
   final String Function(int number) _trackName;
   final AudioSettingsStore settingsStore;
   AudioSettings audio = AudioSettings();
@@ -139,7 +146,13 @@ class StudioController extends ChangeNotifier {
 
   Future<void> _commit() async {
     notifyListeners();
-    await store.save(project);
+    try {
+      await store.save(project);
+    } on FileSystemException catch (e) {
+      // Keep the engine in step even if the disk write failed.
+      errorMessage = e.message;
+      notifyListeners();
+    }
     await _syncEngine();
   }
 
@@ -269,8 +282,15 @@ class StudioController extends ChangeNotifier {
     await _commit();
   }
 
-  Future<void> setInputGain(double db) async {
+  /// Sets the mic gain. While a slider is dragged pass `save: false`: the
+  /// engine follows at once and the song is saved when the drag ends.
+  Future<void> setInputGain(double db, {bool save = true}) async {
     project.inputGainDb = db.clamp(0.0, 36.0).roundToDouble();
+    if (!save) {
+      notifyListeners();
+      await engine.setInputGain(project.inputGainDb);
+      return;
+    }
     await _commit();
   }
 
@@ -286,12 +306,74 @@ class StudioController extends ChangeNotifier {
       store.audioPath(newName),
     );
     if (gain == null) return false;
+    if (t.isEdited) {
+      // Keep the gain so later edits of the original stay louder too.
+      final e = t.edit ?? const TrackEdit();
+      t.edit = e.copyWith(gain: e.gain * gain);
+    }
     t.fileName = newName;
     waveforms.remove(t.id);
     await _commit();
     await store.deleteAudio(oldName);
     unawaited(_loadWaveforms());
     return true;
+  }
+
+  // Editing -----------------------------------------------------------------
+
+  /// Waveform of the untouched recording, for the editor.
+  Future<Waveform?> originalWaveform(Track t) =>
+      _loadWaveform(store.audioPath(t.originalFileName ?? t.fileName));
+
+  /// Length of the untouched recording.
+  double originalDuration(Track t) =>
+      t.originalDurationSeconds ?? t.durationSeconds;
+
+  /// Applies [edit] to the original recording of [t]. Returns false when
+  /// nothing would be left or the file can't be edited.
+  Future<bool> editTrack(Track t, TrackEdit edit) async {
+    if (isRecording) return false;
+    if (isPlaying) await engine.stop();
+    final source = t.originalFileName ?? t.fileName;
+    final newName = 'take_${t.id}_${_newId()}.wav';
+    final duration = await _renderEdit(
+      store.audioPath(source),
+      store.audioPath(newName),
+      edit,
+    );
+    if (duration == null) return false;
+    final old = t.fileName;
+    if (!t.isEdited) {
+      t.originalFileName = source;
+      t.originalDurationSeconds = t.durationSeconds;
+    }
+    t
+      ..fileName = newName
+      ..edit = edit
+      ..durationSeconds = duration;
+    waveforms.remove(t.id);
+    await _commit();
+    if (old != t.originalFileName) await store.deleteAudio(old);
+    unawaited(_loadWaveforms());
+    return true;
+  }
+
+  /// Goes back to the untouched recording.
+  Future<void> resetEdit(Track t) async {
+    final original = t.originalFileName;
+    if (original == null || isRecording) return;
+    if (isPlaying) await engine.stop();
+    final old = t.fileName;
+    t
+      ..fileName = original
+      ..durationSeconds = t.originalDurationSeconds ?? t.durationSeconds
+      ..originalFileName = null
+      ..originalDurationSeconds = null
+      ..edit = null;
+    waveforms.remove(t.id);
+    await _commit();
+    await store.deleteAudio(old);
+    unawaited(_loadWaveforms());
   }
 
   // Monitoring & calibration ----------------------------------------------
@@ -439,6 +521,8 @@ class StudioController extends ChangeNotifier {
     project.tracks.remove(t);
     await _commit();
     await store.deleteAudio(t.fileName);
+    final original = t.originalFileName;
+    if (original != null) await store.deleteAudio(original);
   }
 
   @override

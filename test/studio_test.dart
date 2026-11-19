@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:multitrack_recorder/audio/track_edit.dart';
 import 'package:multitrack_recorder/audio/waveform.dart';
 import 'package:multitrack_recorder/models/project.dart';
 import 'package:multitrack_recorder/studio/audio_settings.dart';
@@ -13,6 +14,9 @@ import 'package:multitrack_recorder/studio/project_store.dart';
 import 'package:multitrack_recorder/ui/studio_screen.dart';
 import 'package:multitrack_recorder/ui/l10n.dart';
 import 'package:multitrack_recorder/ui/theme.dart';
+
+import 'waveform_test.dart' show wav;
+
 import 'package:multitrack_recorder/studio/studio_controller.dart';
 
 class FakeEngine implements MultitrackEngine {
@@ -222,6 +226,39 @@ void main() {
     expect(find.text('Track 1'), findsOneWidget);
   });
 
+  testWidgets('track editor opens from the track menu', (tester) async {
+    await tester.runAsync(() async {
+      await c.init();
+      await c.startRecording();
+      await c.stopRecording();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StudioScreen(controller: c),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Edit'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('Edit: Track 1'), findsOneWidget);
+    expect(find.text('0 ms'), findsOneWidget);
+    await tester.tap(find.text('+10 ms'));
+    await tester.pump();
+    expect(find.text('+10 ms'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
   Future<void> recordTakes(int n) async {
     for (var i = 0; i < n; i++) {
       await c.startRecording();
@@ -361,6 +398,16 @@ void main() {
     expect((await lib.create()).inputGainDb, 30);
   });
 
+  test('many quick saves do not collide', () async {
+    await c.init();
+    await Future.wait([
+      for (var db = 0; db < 20; db++) c.setInputGain(db.toDouble()),
+    ]);
+    expect((await ProjectStore(dir).load())!.inputGainDb, 19);
+    await c.setInputGain(5, save: false);
+    expect(engine.gainDb, 5);
+  });
+
   test('normalize swaps the take file and reloads it', () async {
     await c.init();
     await recordTakes(1);
@@ -372,6 +419,60 @@ void main() {
     expect(File(c.store.audioPath(old)).existsSync(), isFalse);
     expect(engine.tracks.single.path, endsWith(t.fileName));
   });
+
+  test(
+    'editing renders from the original; restore and delete clean up',
+    () async {
+      await c.init();
+      await recordTakes(1);
+      final t = c.project.tracks.single;
+      final original = t.fileName;
+      File(c.store.audioPath(original)).writeAsBytesSync(
+        wav(
+          format: 3,
+          bits: 32,
+          channels: 1,
+          rate: 10,
+          samples: List.filled(30, 0.1),
+        ),
+      );
+
+      expect(await c.editTrack(t, const TrackEdit(trimStart: 1)), isTrue);
+      expect(t.originalFileName, original);
+      // Trimming the start keeps the take in place: silence instead.
+      expect(t.durationSeconds, closeTo(3, 1e-9));
+      expect(engine.tracks.single.path, endsWith(t.fileName));
+      final firstEdit = t.fileName;
+
+      // A second edit starts again from the original, not from the first edit.
+      expect(await c.editTrack(t, const TrackEdit(shift: 0.5)), isTrue);
+      expect(t.durationSeconds, closeTo(3.5, 1e-9));
+      expect(File(c.store.audioPath(firstEdit)).existsSync(), isFalse);
+      expect(File(c.store.audioPath(original)).existsSync(), isTrue);
+
+      // "Make louder" keeps its gain for later edits.
+      expect(await c.normalizeTrack(t), isTrue);
+      expect(t.edit!.gain, 2);
+      final saved = (await ProjectStore(dir).load())!.tracks.single;
+      expect(saved.edit, t.edit);
+      expect(saved.originalFileName, original);
+
+      expect(await c.editTrack(t, const TrackEdit(shift: -9)), isFalse);
+
+      final edited = t.fileName;
+      await c.resetEdit(t);
+      expect(t.fileName, original);
+      expect(t.isEdited, isFalse);
+      expect(t.durationSeconds, 3.5);
+      expect(File(c.store.audioPath(edited)).existsSync(), isFalse);
+
+      await c.editTrack(t, const TrackEdit(fadeIn: 1));
+      final last = t.fileName;
+      await c.deleteTrack(t);
+      expect(File(c.store.audioPath(original)).existsSync(), isFalse);
+      expect(File(c.store.audioPath(last)).existsSync(), isFalse);
+    },
+  );
 
   EngineStatus routeStatus(String route) => EngineStatus(
     isPlaying: false,

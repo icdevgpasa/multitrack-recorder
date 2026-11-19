@@ -565,6 +565,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t hear the clicks. Turn the volume up and try again.'**
   String get calibrationFailed;
+
+  /// No description provided for @editTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editTrack;
+
+  /// No description provided for @editTrackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit: {name}'**
+  String editTrackTitle(String name);
+
+  /// No description provided for @trimTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim'**
+  String get trimTitle;
+
+  /// No description provided for @trimHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the ends to cut silence or mistakes at the start and end.'**
+  String get trimHint;
+
+  /// No description provided for @fadeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade in'**
+  String get fadeIn;
+
+  /// No description provided for @fadeOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade out'**
+  String get fadeOut;
+
+  /// No description provided for @shiftTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move in time'**
+  String get shiftTitle;
+
+  /// No description provided for @shiftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Line the take up with the beat. Positive is later.'**
+  String get shiftHint;
+
+  /// No description provided for @shiftValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ms'**
+  String shiftValue(String value);
+
+  /// No description provided for @beatShort.
+  ///
+  /// In en, this message translates to:
+  /// **'beat'**
+  String get beatShort;
+
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// No description provided for @restoreOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore original'**
+  String get restoreOriginal;
+
+  /// No description provided for @editFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing would be left of the track.'**
+  String get editFailed;
+
+  /// No description provided for @editApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes saved to \"{name}\".'**
+  String editApplied(String name);
 }
 
 class _AppLocalizationsDelegate

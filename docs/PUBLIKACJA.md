@@ -21,6 +21,7 @@ Na prawdziwym urządzeniu, najlepiej ze słuchawkami i bez:
 - [ ] Nagrywanie przez słuchawki przewodowe, AirPods i (jeśli masz) interfejs audio USB.
 - [ ] Telefon dzwoni / przychodzi alarm w trakcie nagrywania: aplikacja się nie wiesza.
 - [ ] Solo, mute, panorama, master słychać w odtwarzaniu i w eksporcie.
+- [ ] Edycja ścieżki (⋮ → Edytuj): przycięcie, fade in/out, przesunięcie o 10 ms i o miarę słychać w odtwarzaniu i eksporcie; „Przywróć oryginał” cofa wszystko.
 - [ ] Eksport M4A, WAV i pojedynczych ścieżek; zapis do Plików i AirDrop.
 - [ ] Długie nagranie (10+ minut): fala się rysuje, eksport kończy się poprawnie.
 - [ ] Lista utworów: nowy, zmiana nazwy, usuwanie.
