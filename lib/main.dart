@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,8 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
   final docs = await getApplicationDocumentsDirectory();
   runApp(
     MultitrackApp(
@@ -27,7 +30,7 @@ class MultitrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Multitrack',
+    title: 'NagrajTo',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(),
     home: ProjectsScreen(library: library, engine: engine),

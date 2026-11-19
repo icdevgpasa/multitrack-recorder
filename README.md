@@ -1,4 +1,4 @@
-# Multitrack Recorder
+# NagrajTo
 
 Aplikacja mobilna dla muzyków: nagrywanie wielu ścieżek (jedna na drugiej),
 a potem eksport całego utworu albo pojedynczych ścieżek. Najpierw iOS, Android później.
@@ -15,7 +15,7 @@ a potem eksport całego utworu albo pojedynczych ścieżek. Najpierw iOS, Androi
 1. **Rdzeń nagrywania** – nagrywanie z odsłuchem poprzednich ścieżek, metronom z odliczaniem, kompensacja opóźnienia. ✅ (wersja 1)
 2. **Mikser i eksport** – głośność/panorama/mute/solo, master, lista utworów, eksport miksu (M4A/WAV) i pojedynczych ścieżek + udostępnianie. ✅ (wersja 1)
 3. **Wygląd i efekty wizualne** – przebiegi fali (dotknij, by przewinąć), fala na żywo przy nagrywaniu, wizualizator spektrum (FFT), tło reagujące na muzykę i beat. ✅ (wersja 1)
-4. **Testy na urządzeniach i publikacja** – App Store, potem Google Play.
+4. **Testy na urządzeniach i publikacja** – App Store (instrukcja: [docs/PUBLIKACJA.md](docs/PUBLIKACJA.md)), potem Google Play.
 
 ## Uruchomienie (Mac z Xcode)
 
