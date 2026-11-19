@@ -30,7 +30,7 @@ class Track {
   String name;
 
   /// File name relative to the project's folder.
-  final String fileName;
+  String fileName;
   final double durationSeconds;
   double volume;
   double pan;
@@ -54,23 +54,25 @@ class Track {
 class Project {
   Project({
     required this.id,
-    this.name = 'Nowy utwór',
+    this.name = 'New song',
     this.bpm = 120,
     this.beatsPerBar = 4,
     this.metronomeOn = true,
     this.countInBars = 1,
     this.masterVolume = 1.0,
+    this.inputGainDb = 12,
     List<Track>? tracks,
   }) : tracks = tracks ?? [];
 
   factory Project.fromJson(Map<String, dynamic> j) => Project(
     id: j['id'] as String,
-    name: j['name'] as String? ?? 'Nowy utwór',
+    name: j['name'] as String? ?? 'New song',
     bpm: (j['bpm'] as num?)?.toDouble() ?? 120,
     beatsPerBar: j['beatsPerBar'] as int? ?? 4,
     metronomeOn: j['metronomeOn'] as bool? ?? true,
     countInBars: j['countInBars'] as int? ?? 1,
     masterVolume: (j['masterVolume'] as num?)?.toDouble() ?? 1.0,
+    inputGainDb: (j['inputGainDb'] as num?)?.toDouble() ?? 12,
     tracks: [
       for (final t in (j['tracks'] as List? ?? const []))
         Track.fromJson(Map<String, dynamic>.from(t as Map)),
@@ -84,6 +86,9 @@ class Project {
   bool metronomeOn;
   int countInBars;
   double masterVolume;
+
+  /// Software gain on the microphone, 0 – 36 dB.
+  double inputGainDb;
   final List<Track> tracks;
 
   bool get anySolo => tracks.any((t) => t.solo);
@@ -103,6 +108,7 @@ class Project {
     'metronomeOn': metronomeOn,
     'countInBars': countInBars,
     'masterVolume': masterVolume,
+    'inputGainDb': inputGainDb,
     'tracks': [for (final t in tracks) t.toJson()],
   };
 }

@@ -41,11 +41,14 @@ class ProjectLibrary {
     return out;
   }
 
-  Future<Project> create({String? name}) async {
+  /// [nameFor] gives the default name from the song's number (localised).
+  Future<Project> create({String Function(int number)? nameFor}) async {
     final existing = await list();
     final project = Project(
       id: _newId(),
-      name: name ?? 'Utwór ${existing.length + 1}',
+      name: (nameFor ?? (n) => 'Song $n')(existing.length + 1),
+      // The mic doesn't change between songs: keep the last gain used.
+      inputGainDb: existing.isEmpty ? 12 : existing.first.project.inputGainDb,
     );
     await storeFor(project.id).save(project);
     return project;

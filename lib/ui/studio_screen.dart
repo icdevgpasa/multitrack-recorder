@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/project.dart';
 import '../studio/studio_controller.dart';
+import 'l10n.dart';
 import 'theme.dart';
 import 'visuals.dart';
 import 'widgets.dart';
@@ -39,15 +40,15 @@ class _StudioScreenState extends State<StudioScreen> {
               StudioPhase.loading => const Center(
                 child: CircularProgressIndicator(),
               ),
-              StudioPhase.noPermission => const _Message(
+              StudioPhase.noPermission => _Message(
                 icon: Icons.mic_off,
-                text:
-                    'Brak dostępu do mikrofonu.\nWłącz go w Ustawieniach iOS.',
+                text: context.l10n.noMicPermission,
               ),
               StudioPhase.error => _Message(
                 icon: Icons.error_outline,
-                text:
-                    'Nie udało się uruchomić audio.\n${controller.errorMessage ?? ''}',
+                text: context.l10n.audioStartFailed(
+                  controller.errorMessage ?? '',
+                ),
               ),
               StudioPhase.ready => _Studio(
                 controller: controller,
@@ -103,9 +104,9 @@ class _Studio extends StatelessWidget {
             _Header(controller: controller, onClose: onClose),
             Expanded(
               child: p.tracks.isEmpty && !controller.isRecording
-                  ? const _Message(
+                  ? _Message(
                       icon: Icons.graphic_eq,
-                      text: 'Nagraj pierwszą ścieżkę.\nKolejne nagrasz, słuchając poprzednich.',
+                      text: context.l10n.recordFirstTrack,
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -128,12 +129,15 @@ class _Studio extends StatelessWidget {
             child: Container(
               color: Colors.black54,
               alignment: Alignment.center,
-              child: const Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Eksportuję…', style: TextStyle(color: AppColors.text)),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.l10n.exporting,
+                    style: const TextStyle(color: AppColors.text),
+                  ),
                 ],
               ),
             ),
@@ -161,7 +165,7 @@ class _Header extends StatelessWidget {
             children: [
               if (onClose != null)
                 IconButton(
-                  tooltip: 'Utwory',
+                  tooltip: context.l10n.backToSongs,
                   onPressed: busy ? null : onClose,
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                 )
@@ -182,7 +186,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Eksportuj',
+                tooltip: context.l10n.export,
                 onPressed: busy || p.tracks.isEmpty
                     ? null
                     : () => _export(context),
@@ -201,8 +205,8 @@ class _Header extends StatelessWidget {
                 const SizedBox(width: 6),
                 _Chip(
                   label: p.countInBars == 0
-                      ? 'Bez odliczania'
-                      : 'Odliczanie ${p.countInBars}',
+                      ? context.l10n.noCountIn
+                      : context.l10n.countInBars(p.countInBars),
                   onTap: busy
                       ? null
                       : () =>
@@ -210,7 +214,9 @@ class _Header extends StatelessWidget {
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: p.metronomeOn ? 'Wyłącz metronom' : 'Włącz metronom',
+                  tooltip: p.metronomeOn
+                      ? context.l10n.metronomeOff
+                      : context.l10n.metronomeOn,
                   onPressed: busy ? null : controller.toggleMetronome,
                   icon: Icon(
                     Icons.av_timer,
@@ -228,7 +234,7 @@ class _Header extends StatelessWidget {
   Future<void> _renameProject(BuildContext context) async {
     final name = await promptText(
       context,
-      title: 'Nazwa utworu',
+      title: context.l10n.songName,
       initial: controller.project.name,
     );
     if (name != null) await controller.renameProject(name);
@@ -275,11 +281,11 @@ class _Header extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 20, 24, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
               child: Text(
-                'Eksport',
-                style: TextStyle(
+                context.l10n.exportTitle,
+                style: const TextStyle(
                   color: AppColors.text,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -289,8 +295,8 @@ class _Header extends StatelessWidget {
             for (final c in _ExportChoice.values)
               ListTile(
                 leading: Icon(c.icon, color: AppColors.accent),
-                title: Text(c.title),
-                subtitle: Text(c.subtitle),
+                title: Text(c.title(context.l10n)),
+                subtitle: Text(c.subtitle(context.l10n)),
                 onTap: () => Navigator.pop(context, c),
               ),
             const SizedBox(height: 8),
@@ -310,7 +316,9 @@ class _Header extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Eksport nie wyszedł: ${controller.errorMessage ?? 'brak ścieżek do eksportu'}',
+            context.l10n.exportFailed(
+              controller.errorMessage ?? context.l10n.nothingToExport,
+            ),
           ),
         ),
       );
@@ -326,23 +334,25 @@ class _Header extends StatelessWidget {
 }
 
 enum _ExportChoice {
-  mixM4a(
-    Icons.music_note,
-    'Cały utwór (M4A)',
-    'Mały plik do wysłania lub odsłuchu',
-  ),
-  mixWav(Icons.high_quality, 'Cały utwór (WAV)', 'Bez strat jakości, 24 bit'),
-  stems(
-    Icons.view_list,
-    'Pojedyncze ścieżki (WAV)',
-    'Każda ścieżka osobno, do dalszej pracy w DAW',
-  );
+  mixM4a(Icons.music_note),
+  mixWav(Icons.high_quality),
+  stems(Icons.view_list);
 
-  const _ExportChoice(this.icon, this.title, this.subtitle);
+  const _ExportChoice(this.icon);
 
   final IconData icon;
-  final String title;
-  final String subtitle;
+
+  String title(AppLocalizations l) => switch (this) {
+    mixM4a => l.exportMixM4a,
+    mixWav => l.exportMixWav,
+    stems => l.exportStems,
+  };
+
+  String subtitle(AppLocalizations l) => switch (this) {
+    mixM4a => l.exportMixM4aHint,
+    mixWav => l.exportMixWavHint,
+    stems => l.exportStemsHint,
+  };
 }
 
 class _Chip extends StatelessWidget {
@@ -438,14 +448,18 @@ class _TrackTileState extends State<TrackTile> {
                     ),
                     _ToggleButton(
                       label: 'S',
-                      tooltip: t.solo ? 'Wyłącz solo' : 'Solo',
+                      tooltip: t.solo
+                          ? context.l10n.soloOff
+                          : context.l10n.soloOn,
                       active: t.solo,
                       activeColor: AppColors.solo,
                       onPressed: () => c.toggleSolo(t),
                     ),
                     _ToggleButton(
                       label: 'M',
-                      tooltip: t.muted ? 'Włącz dźwięk' : 'Wycisz',
+                      tooltip: t.muted
+                          ? context.l10n.unmute
+                          : context.l10n.mute,
                       active: t.muted,
                       activeColor: AppColors.record,
                       onPressed: () => c.toggleMute(t),
@@ -456,16 +470,23 @@ class _TrackTileState extends State<TrackTile> {
                         color: AppColors.textDim,
                         size: 20,
                       ),
-                      onSelected: (v) =>
-                          v == 'rename' ? _rename(context) : c.deleteTrack(t),
-                      itemBuilder: (_) => const [
+                      onSelected: (v) => switch (v) {
+                        'rename' => _rename(context),
+                        'louder' => _normalize(context),
+                        _ => c.deleteTrack(t),
+                      },
+                      itemBuilder: (_) => [
                         PopupMenuItem(
                           value: 'rename',
-                          child: Text('Zmień nazwę'),
+                          child: Text(context.l10n.rename),
+                        ),
+                        PopupMenuItem(
+                          value: 'louder',
+                          child: Text(context.l10n.makeLouder),
                         ),
                         PopupMenuItem(
                           value: 'delete',
-                          child: Text('Usuń ścieżkę'),
+                          child: Text(context.l10n.deleteTrack),
                         ),
                       ],
                     ),
@@ -480,8 +501,7 @@ class _TrackTileState extends State<TrackTile> {
                         d.localPosition.dx / box.maxWidth * c.timelineSeconds,
                       ),
                       child: Semantics(
-                        label:
-                            'Przebieg ścieżki ${t.name}, dotknij, aby odtworzyć od tego miejsca',
+                        label: context.l10n.waveformLabel(t.name),
                         child: WaveformView(
                           peaks: c.waveforms[t.id]?.peaks ?? const <double>[],
                           timelineSeconds: c.timelineSeconds,
@@ -520,7 +540,7 @@ class _TrackTileState extends State<TrackTile> {
                       SizedBox(
                         width: 28,
                         child: Text(
-                          panLabel(pan),
+                          panLabel(context.l10n, pan),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: AppColors.textDim,
@@ -558,10 +578,23 @@ class _TrackTileState extends State<TrackTile> {
     );
   }
 
+  Future<void> _normalize(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final done = await widget.controller.normalizeTrack(widget.track);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          done ? l10n.madeLouder(widget.track.name) : l10n.alreadyLoud,
+        ),
+      ),
+    );
+  }
+
   Future<void> _rename(BuildContext context) async {
     final name = await promptText(
       context,
-      title: 'Nazwa ścieżki',
+      title: context.l10n.trackName,
       initial: widget.track.name,
     );
     if (name != null) await widget.controller.rename(widget.track, name);
@@ -569,10 +602,10 @@ class _TrackTileState extends State<TrackTile> {
 }
 
 /// "L40", "C", "P25" (Polish: lewo/prawo).
-String panLabel(double pan) {
+String panLabel(AppLocalizations l10n, double pan) {
   final v = (pan * 100).round();
-  if (v == 0) return 'C';
-  return v < 0 ? 'L${-v}' : 'P$v';
+  if (v == 0) return l10n.panCenter;
+  return v < 0 ? l10n.panLeft(-v) : l10n.panRight(v);
 }
 
 class _ToggleButton extends StatelessWidget {
@@ -675,16 +708,16 @@ class _TransportState extends State<_Transport> {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.mic, size: 16, color: AppColors.textDim),
+              _GainChip(controller: controller),
               const SizedBox(width: 8),
               Expanded(child: LevelMeter(level: s.inputLevel)),
             ],
           ),
           Row(
             children: [
-              const Text(
-                'Master',
-                style: TextStyle(color: AppColors.textDim, fontSize: 12),
+              Text(
+                context.l10n.master,
+                style: const TextStyle(color: AppColors.textDim, fontSize: 12),
               ),
               Expanded(
                 child: Slider(
@@ -703,7 +736,7 @@ class _TransportState extends State<_Transport> {
             children: [
               IconButton.filledTonal(
                 iconSize: 32,
-                tooltip: 'Stop',
+                tooltip: context.l10n.stop,
                 onPressed: s.isPlaying || recording ? controller.stop : null,
                 icon: const Icon(Icons.stop_rounded),
               ),
@@ -713,7 +746,7 @@ class _TransportState extends State<_Transport> {
               ),
               IconButton.filledTonal(
                 iconSize: 32,
-                tooltip: 'Odtwórz',
+                tooltip: context.l10n.play,
                 onPressed: !s.isPlaying && !recording && p.tracks.isNotEmpty
                     ? controller.play
                     : null,
@@ -746,11 +779,11 @@ Future<String?> promptText(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Anuluj'),
+          child: Text(context.l10n.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, ctrl.text),
-          child: const Text('Zapisz'),
+          child: Text(context.l10n.save),
         ),
       ],
     ),
@@ -794,7 +827,9 @@ class _RecordingTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                s.isCountingIn ? 'Odliczanie…' : 'Nagrywanie…',
+                s.isCountingIn
+                    ? context.l10n.countingIn
+                    : context.l10n.recording,
                 style: const TextStyle(
                   color: AppColors.text,
                   fontWeight: FontWeight.w600,
@@ -810,6 +845,89 @@ class _RecordingTile extends StatelessWidget {
             playheadSeconds: s.positionSeconds >= 0 ? s.positionSeconds : null,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shows the mic gain; tap to adjust it while watching the input meter.
+class _GainChip extends StatelessWidget {
+  const _GainChip({required this.controller});
+
+  final StudioController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final db = controller.project.inputGainDb.round();
+    return Semantics(
+      button: true,
+      label: context.l10n.micGainLabel(db),
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: controller.isRecording ? null : () => _edit(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.mic, size: 14, color: AppColors.textDim),
+              const SizedBox(width: 4),
+              Text(
+                '+$db dB',
+                style: const TextStyle(color: AppColors.text, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _edit(BuildContext context) async {
+    var db = controller.project.inputGainDb;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.micGainTitle(db.round()),
+                style: const TextStyle(color: AppColors.text, fontSize: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                context.l10n.micGainHint,
+                style: const TextStyle(color: AppColors.textDim, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) =>
+                    LevelMeter(level: controller.status.inputLevel, height: 10),
+              ),
+              Slider(
+                min: 0,
+                max: 36,
+                divisions: 36,
+                value: db,
+                onChanged: (v) {
+                  setState(() => db = v);
+                  controller.setInputGain(v);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

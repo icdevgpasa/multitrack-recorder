@@ -70,6 +70,8 @@ final class AudioEngine {
   private var clickBar: AVAudioPCMBuffer?
   private var metronome = MetronomeConfig()
   private var manualOffset: Double = 0
+  /// Linear software gain applied to the input (recording + meter).
+  private var inputGain: Float = 4  // +12 dB
   private var graphReady = false
 
   // Transport (main thread).
@@ -118,6 +120,8 @@ final class AudioEngine {
       options: [.defaultToSpeaker, .allowBluetoothA2DP])
     try session.setPreferredIOBufferDuration(0.005)
     try session.setActive(true)
+    // Hardware gain to the max where iOS allows it (external interfaces, some mics).
+    if session.isInputGainSettable { try? session.setInputGain(1.0) }
 
     if !graphReady {
       engine.attach(clickNode)
@@ -216,6 +220,12 @@ final class AudioEngine {
     if config != metronome { clickBar = nil }
     metronome = config
     clickNode.volume = config.volume
+  }
+
+  func setInputGain(db: Double) {
+    lock.lock()
+    inputGain = Float(pow(10, max(0, min(36, db)) / 20))
+    lock.unlock()
   }
 
   func setMasterVolume(_ v: Float) {
@@ -329,10 +339,10 @@ final class AudioEngine {
   }
 
   private func handleInput(_ buffer: AVAudioPCMBuffer, _ when: AVAudioTime) {
-    let p = Self.peak(buffer)
     lock.lock()
     defer { lock.unlock() }
-    inputPeak = max(inputPeak, p)
+    let gain = inputGain
+    inputPeak = max(inputPeak, min(1, Self.peak(buffer) * gain))
     guard let writer = writer else { return }
     if let ch = buffer.floatChannelData {
       spectrum.process(ch[0], count: Int(buffer.frameLength), sampleRate: buffer.format.sampleRate)
@@ -358,6 +368,7 @@ final class AudioEngine {
       }
     }
     guard let mono = Self.mono(buffer, from: skip, format: writer.processingFormat) else { return }
+    Self.applyGain(mono, gain)
     do {
       try writer.write(from: mono)
       framesWritten += AVAudioFramePosition(mono.frameLength)
@@ -434,6 +445,14 @@ final class AudioEngine {
     }
     clickBar = buf
     return buf
+  }
+
+  /// Multiplies in place and clips to ±1 so a hot signal can't wrap around.
+  static func applyGain(_ buffer: AVAudioPCMBuffer, _ gain: Float) {
+    guard gain != 1, let d = buffer.floatChannelData?[0] else { return }
+    for i in 0..<Int(buffer.frameLength) {
+      d[i] = max(-1, min(1, d[i] * gain))
+    }
   }
 
   static func peak(_ buffer: AVAudioPCMBuffer) -> Float {

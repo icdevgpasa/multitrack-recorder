@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 
+import '../audio/normalize.dart';
 import '../audio/waveform.dart';
 import '../models/project.dart';
 import 'project_store.dart';
@@ -17,7 +18,11 @@ class StudioController extends ChangeNotifier {
     required this.newProjectId,
     String Function()? idGenerator,
     Future<Waveform?> Function(String path)? waveformLoader,
+    Future<double?> Function(String src, String dst)? normalizer,
+    String Function(int number)? trackName,
   }) : _loadWaveform = waveformLoader ?? Waveform.load,
+       _normalize = normalizer ?? normalizeWav,
+       _trackName = trackName ?? ((n) => 'Track $n'),
        _newId =
            idGenerator ??
            (() => DateTime.now().microsecondsSinceEpoch.toRadixString(36));
@@ -27,6 +32,8 @@ class StudioController extends ChangeNotifier {
   final String newProjectId;
   final String Function() _newId;
   final Future<Waveform?> Function(String path) _loadWaveform;
+  final Future<double?> Function(String src, String dst) _normalize;
+  final String Function(int number) _trackName;
 
   /// Waveforms by track id, filled in the background.
   final waveforms = <String, Waveform>{};
@@ -112,6 +119,7 @@ class StudioController extends ChangeNotifier {
         ),
     ]);
     await engine.setMasterVolume(project.masterVolume);
+    await engine.setInputGain(project.inputGainDb);
   }
 
   Future<void> _commit() async {
@@ -192,7 +200,7 @@ class StudioController extends ChangeNotifier {
     project.tracks.add(
       Track(
         id: id,
-        name: 'Ścieżka ${project.tracks.length + 1}',
+        name: _trackName(project.tracks.length + 1),
         fileName: 'take_$id.wav',
         durationSeconds: result.durationSeconds,
         colorIndex: project.tracks.length,
@@ -244,6 +252,31 @@ class StudioController extends ChangeNotifier {
   Future<void> setMasterVolume(double v) async {
     project.masterVolume = v.clamp(0.0, 1.0);
     await _commit();
+  }
+
+  Future<void> setInputGain(double db) async {
+    project.inputGainDb = db.clamp(0.0, 36.0).roundToDouble();
+    await _commit();
+  }
+
+  /// Makes a quiet take louder (peak to -1 dB). Returns false when there was
+  /// nothing to do (already loud, silent, or not a float WAV).
+  Future<bool> normalizeTrack(Track t) async {
+    if (isRecording) return false;
+    if (isPlaying) await engine.stop();
+    final oldName = t.fileName;
+    final newName = 'take_${t.id}_${_newId()}.wav';
+    final gain = await _normalize(
+      store.audioPath(oldName),
+      store.audioPath(newName),
+    );
+    if (gain == null) return false;
+    t.fileName = newName;
+    waveforms.remove(t.id);
+    await _commit();
+    await store.deleteAudio(oldName);
+    unawaited(_loadWaveforms());
+    return true;
   }
 
   Future<void> renameProject(String name) async {
@@ -352,5 +385,5 @@ class StudioController extends ChangeNotifier {
 /// Turns a song/track name into something safe for a file name.
 String safeFileName(String name) {
   final cleaned = name.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_').trim();
-  return cleaned.isEmpty ? 'utwor' : cleaned;
+  return cleaned.isEmpty ? 'song' : cleaned;
 }
