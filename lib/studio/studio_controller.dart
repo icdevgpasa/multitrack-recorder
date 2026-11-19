@@ -19,8 +19,10 @@ class StudioController extends ChangeNotifier {
     String Function()? idGenerator,
     Future<Waveform?> Function(String path)? waveformLoader,
     Future<double?> Function(String src, String dst)? normalizer,
+    String Function(int number)? trackName,
   }) : _loadWaveform = waveformLoader ?? Waveform.load,
        _normalize = normalizer ?? normalizeWav,
+       _trackName = trackName ?? ((n) => 'Track $n'),
        _newId =
            idGenerator ??
            (() => DateTime.now().microsecondsSinceEpoch.toRadixString(36));
@@ -31,6 +33,7 @@ class StudioController extends ChangeNotifier {
   final String Function() _newId;
   final Future<Waveform?> Function(String path) _loadWaveform;
   final Future<double?> Function(String src, String dst) _normalize;
+  final String Function(int number) _trackName;
 
   /// Waveforms by track id, filled in the background.
   final waveforms = <String, Waveform>{};
@@ -197,7 +200,7 @@ class StudioController extends ChangeNotifier {
     project.tracks.add(
       Track(
         id: id,
-        name: 'Ścieżka ${project.tracks.length + 1}',
+        name: _trackName(project.tracks.length + 1),
         fileName: 'take_$id.wav',
         durationSeconds: result.durationSeconds,
         colorIndex: project.tracks.length,
@@ -382,5 +385,5 @@ class StudioController extends ChangeNotifier {
 /// Turns a song/track name into something safe for a file name.
 String safeFileName(String name) {
   final cleaned = name.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_').trim();
-  return cleaned.isEmpty ? 'utwor' : cleaned;
+  return cleaned.isEmpty ? 'song' : cleaned;
 }

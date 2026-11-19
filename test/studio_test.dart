@@ -9,8 +9,8 @@ import 'package:multitrack_recorder/audio/waveform.dart';
 import 'package:multitrack_recorder/models/project.dart';
 import 'package:multitrack_recorder/studio/project_library.dart';
 import 'package:multitrack_recorder/studio/project_store.dart';
-import 'package:multitrack_recorder/ui/projects_screen.dart';
 import 'package:multitrack_recorder/ui/studio_screen.dart';
+import 'package:multitrack_recorder/ui/l10n.dart';
 import 'package:multitrack_recorder/ui/theme.dart';
 import 'package:multitrack_recorder/studio/studio_controller.dart';
 
@@ -113,7 +113,7 @@ void main() {
       await c.stopRecording();
 
       expect(c.project.tracks, hasLength(1));
-      expect(c.project.tracks.single.name, 'Ścieżka 1');
+      expect(c.project.tracks.single.name, 'Track 1');
       expect(engine.tracks.single.path, engine.recordingPath);
 
       final reloaded = await ProjectStore(dir).load();
@@ -171,13 +171,18 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         home: StudioScreen(controller: c),
       ),
     );
     expect(find.text('120 BPM'), findsOneWidget);
-    expect(find.textContaining('Nagraj pierwszą'), findsOneWidget);
+    expect(find.textContaining('Record your first track'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Nagrywaj'));
+    await tester.tap(find.bySemanticsLabel('Record'));
     await tester.pump();
     engine.statusCtrl.add(
       const EngineStatus(
@@ -195,7 +200,7 @@ void main() {
 
     await tester.runAsync(c.stopRecording);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Ścieżka 1'), findsOneWidget);
+    expect(find.text('Track 1'), findsOneWidget);
   });
 
   Future<void> recordTakes(int n) async {
@@ -245,7 +250,7 @@ void main() {
     expect(await lib.list(), isEmpty);
     final a = await lib.create();
     final b = await lib.create();
-    expect(b.name, 'Utwór 2');
+    expect(b.name, 'Song 2');
     expect(
       (await lib.list()).map((s) => s.project.id),
       containsAll([a.id, b.id]),
@@ -254,14 +259,30 @@ void main() {
     expect((await lib.list()).single.project.id, b.id);
   });
 
-  test('polish plural for track count', () {
-    expect(trackCountLabel(1), '1 ścieżka');
-    expect(trackCountLabel(3), '3 ścieżki');
-    expect(trackCountLabel(5), '5 ścieżek');
-    expect(trackCountLabel(12), '12 ścieżek');
-    expect(trackCountLabel(22), '22 ścieżki');
-    expect(panLabel(-0.4), 'L40');
-    expect(panLabel(0), 'C');
+  test('track count plural and pan label in both languages', () async {
+    final en = await AppLocalizations.delegate.load(const Locale('en'));
+    final pl = await AppLocalizations.delegate.load(const Locale('pl'));
+    expect(en.trackCount(1), '1 track');
+    expect(en.trackCount(3), '3 tracks');
+    expect(pl.trackCount(1), '1 ścieżka');
+    expect(pl.trackCount(3), '3 ścieżki');
+    expect(pl.trackCount(5), '5 ścieżek');
+    expect(pl.trackCount(12), '12 ścieżek');
+    expect(pl.trackCount(22), '22 ścieżki');
+    expect(panLabel(en, -0.4), 'L40');
+    expect(panLabel(en, 0.25), 'R25');
+    expect(panLabel(pl, 0.25), 'P25');
+    expect(panLabel(en, 0), 'C');
+  });
+
+  test('English by default, Polish only for a Polish phone', () {
+    expect(resolveAppLocale(null), const Locale('en'));
+    expect(resolveAppLocale([const Locale('de')]), const Locale('en'));
+    expect(resolveAppLocale([const Locale('pl', 'PL')]), const Locale('pl'));
+    expect(
+      resolveAppLocale([const Locale('en'), const Locale('pl')]),
+      const Locale('en'),
+    );
   });
 
   test(

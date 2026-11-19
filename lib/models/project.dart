@@ -54,7 +54,7 @@ class Track {
 class Project {
   Project({
     required this.id,
-    this.name = 'Nowy utwór',
+    this.name = 'New song',
     this.bpm = 120,
     this.beatsPerBar = 4,
     this.metronomeOn = true,
@@ -66,7 +66,7 @@ class Project {
 
   factory Project.fromJson(Map<String, dynamic> j) => Project(
     id: j['id'] as String,
-    name: j['name'] as String? ?? 'Nowy utwór',
+    name: j['name'] as String? ?? 'New song',
     bpm: (j['bpm'] as num?)?.toDouble() ?? 120,
     beatsPerBar: j['beatsPerBar'] as int? ?? 4,
     metronomeOn: j['metronomeOn'] as bool? ?? true,

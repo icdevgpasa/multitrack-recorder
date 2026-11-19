@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 
+import 'l10n.dart';
 import 'theme.dart';
 
 /// Smoothed horizontal peak meter (fast attack, slow release).
@@ -145,7 +146,9 @@ class _RecordButtonState extends State<RecordButton>
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: widget.recording ? 'Zatrzymaj nagrywanie' : 'Nagrywaj',
+      label: widget.recording
+          ? context.l10n.stopRecording
+          : context.l10n.record,
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedBuilder(

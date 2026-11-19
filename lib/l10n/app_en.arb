@@ -1,0 +1,151 @@
+{
+  "@@locale": "en",
+  "appTitle": "NagrajTo",
+  "songsTitle": "Your songs",
+  "newSong": "New song",
+  "noSongsYet": "No songs yet.\nStart with “New song”.",
+  "deleteSongTooltip": "Delete song",
+  "deleteSongTitle": "Delete “{name}”?",
+  "@deleteSongTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteSongBody": "All recorded tracks will be deleted.",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "save": "Save",
+  "trackCount": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "@trackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultSongName": "Song {number}",
+  "@defaultSongName": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultTrackName": "Track {number}",
+  "@defaultTrackName": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "noMicPermission": "No access to the microphone.\nTurn it on in iOS Settings.",
+  "audioStartFailed": "Couldn't start audio.\n{error}",
+  "@audioStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordFirstTrack": "Record your first track.\nRecord the next ones while listening to the previous.",
+  "exporting": "Exporting…",
+  "backToSongs": "Songs",
+  "export": "Export",
+  "exportTitle": "Export",
+  "noCountIn": "No count-in",
+  "countInBars": "Count-in {bars}",
+  "@countInBars": {
+    "placeholders": {
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "metronomeOff": "Turn metronome off",
+  "metronomeOn": "Turn metronome on",
+  "songName": "Song name",
+  "trackName": "Track name",
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingToExport": "no tracks to export",
+  "exportMixM4a": "Whole song (M4A)",
+  "exportMixM4aHint": "Small file to send or listen to",
+  "exportMixWav": "Whole song (WAV)",
+  "exportMixWavHint": "Lossless, 24-bit",
+  "exportStems": "Separate tracks (WAV)",
+  "exportStemsHint": "Each track on its own, for your DAW",
+  "soloOn": "Solo",
+  "soloOff": "Turn solo off",
+  "mute": "Mute",
+  "unmute": "Unmute",
+  "rename": "Rename",
+  "makeLouder": "Make louder (normalize)",
+  "deleteTrack": "Delete track",
+  "waveformLabel": "Waveform of {name}, tap to play from here",
+  "@waveformLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "madeLouder": "“{name}” is louder now.",
+  "@madeLouder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "alreadyLoud": "This track is already loud enough.",
+  "panLeft": "L{amount}",
+  "@panLeft": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "panRight": "R{amount}",
+  "@panRight": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "panCenter": "C",
+  "master": "Master",
+  "stop": "Stop",
+  "play": "Play",
+  "countingIn": "Count-in…",
+  "recording": "Recording…",
+  "record": "Record",
+  "stopRecording": "Stop recording",
+  "micGainLabel": "Microphone gain {db} dB",
+  "@micGainLabel": {
+    "placeholders": {
+      "db": {
+        "type": "int"
+      }
+    }
+  },
+  "micGainTitle": "Microphone gain: +{db} dB",
+  "@micGainTitle": {
+    "placeholders": {
+      "db": {
+        "type": "int"
+      }
+    }
+  },
+  "micGainHint": "Play as loud as you will: the bar should reach yellow, but not red."
+}

@@ -4,6 +4,7 @@ import 'package:multitrack_engine/multitrack_engine.dart';
 import '../models/project.dart';
 import '../studio/project_library.dart';
 import '../studio/studio_controller.dart';
+import 'l10n.dart';
 import 'studio_screen.dart';
 import 'theme.dart';
 
@@ -41,6 +42,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       engine: widget.engine,
       store: widget.library.storeFor(project.id),
       newProjectId: project.id,
+      trackName: context.l10n.defaultTrackName,
     );
     final init = controller.init();
     await Navigator.of(context).push(
@@ -58,7 +60,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Future<void> _create() async {
-    final project = await widget.library.create();
+    final project = await widget.library.create(
+      nameFor: context.l10n.defaultSongName,
+    );
     await _open(project);
   }
 
@@ -66,17 +70,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Usunąć „${project.name}”?'),
-        content: const Text('Wszystkie nagrane ścieżki zostaną usunięte.'),
+        title: Text(context.l10n.deleteSongTitle(project.name)),
+        content: Text(context.l10n.deleteSongBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Anuluj'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Usuń',
+            child: Text(
+              context.l10n.delete,
               style: TextStyle(color: AppColors.record),
             ),
           ),
@@ -97,7 +101,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Nowy utwór'),
+        label: Text(context.l10n.newSong),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
@@ -105,11 +109,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           bottom: false,
           child: CustomScrollView(
             slivers: [
-              const SliverPadding(
+              SliverPadding(
                 padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
                 sliver: SliverToBoxAdapter(
                   child: Text(
-                    'Twoje utwory',
+                    context.l10n.songsTitle,
                     style: TextStyle(
                       color: AppColors.text,
                       fontSize: 30,
@@ -123,11 +127,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (projects.isEmpty)
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      'Nie masz jeszcze żadnego utworu.\nZacznij od „Nowy utwór”.',
+                      context.l10n.noSongsYet,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.textDim),
                     ),
@@ -214,7 +218,7 @@ class _ProjectCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${trackCountLabel(n)} · ${formatTime(p.lengthSeconds)} · ${p.bpm.round()} BPM',
+                        '${context.l10n.trackCount(n)} · ${formatTime(p.lengthSeconds)} · ${p.bpm.round()} BPM',
                         style: const TextStyle(
                           color: AppColors.textDim,
                           fontSize: 13,
@@ -224,7 +228,7 @@ class _ProjectCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Usuń utwór',
+                  tooltip: context.l10n.deleteSongTooltip,
                   onPressed: onDelete,
                   icon: const Icon(
                     Icons.delete_outline,
@@ -238,15 +242,4 @@ class _ProjectCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Polish plural: 1 ścieżka, 2–4 ścieżki, 5+ ścieżek (12–14 ścieżek).
-String trackCountLabel(int n) {
-  if (n == 1) return '1 ścieżka';
-  final mod10 = n % 10;
-  final mod100 = n % 100;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return '$n ścieżki';
-  }
-  return '$n ścieżek';
 }
