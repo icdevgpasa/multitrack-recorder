@@ -91,5 +91,7 @@
   "apply": "Zastosuj",
   "restoreOriginal": "Przywróć oryginał",
   "editFailed": "Ze ścieżki nic by nie zostało.",
-  "editApplied": "Zapisano zmiany w „{name}”."
+  "editApplied": "Zapisano zmiany w „{name}”.",
+  "takeEmpty": "Nic się nie nagrało: z mikrofonu nie dochodził dźwięk. Spróbuj ponownie, a jeśli się powtórzy, uruchom aplikację od nowa.",
+  "recordingFailed": "Nagrywanie nie powiodło się: {error}"
 }

@@ -649,6 +649,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Changes saved to \"{name}\".'**
   String editApplied(String name);
+
+  /// No description provided for @takeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was recorded: no sound came from the microphone. Try again; if it repeats, restart the app.'**
+  String get takeEmpty;
+
+  /// No description provided for @recordingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording failed: {error}'**
+  String recordingFailed(String error);
 }
 
 class _AppLocalizationsDelegate

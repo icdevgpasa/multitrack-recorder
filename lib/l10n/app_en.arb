@@ -224,5 +224,14 @@
         "type": "String"
       }
     }
+  },
+  "takeEmpty": "Nothing was recorded: no sound came from the microphone. Try again; if it repeats, restart the app.",
+  "recordingFailed": "Recording failed: {error}",
+  "@recordingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 
 import '../audio/normalize.dart';
@@ -66,6 +67,13 @@ class StudioController extends ChangeNotifier {
 
   StudioPhase phase = StudioPhase.loading;
   String? errorMessage;
+
+  /// Set when a take failed: the engine's error, or '' when the take came
+  /// back empty (no sound from the microphone). The screen shows it once and
+  /// clears it with [clearRecordingProblem].
+  String? recordingProblem;
+
+  void clearRecordingProblem() => recordingProblem = null;
   late Project project;
   EngineStatus status = EngineStatus.idle;
   StreamSubscription<EngineStatus>? _sub;
@@ -202,7 +210,7 @@ class StudioController extends ChangeNotifier {
       await engine.startRecording(store.audioPath('take_$id.wav'));
     } catch (e) {
       _pendingTrackId = null;
-      errorMessage = '$e';
+      recordingProblem = _describe(e);
       notifyListeners();
     }
   }
@@ -211,17 +219,20 @@ class StudioController extends ChangeNotifier {
     final id = _pendingTrackId;
     if (id == null) return;
     _pendingTrackId = null;
+    final pastCountIn = status.isPlaying && status.positionSeconds > 0.5;
     final RecordingResult result;
     try {
       result = await engine.stopRecording();
     } catch (e) {
-      errorMessage = '$e';
+      recordingProblem = _describe(e);
       notifyListeners();
       return;
     }
     if (result.durationSeconds < 0.2) {
-      // Stopped during the count-in: nothing worth keeping.
+      // Stopped during the count-in: nothing worth keeping. Past it, an
+      // empty take means the microphone gave no sound.
       await store.deleteAudio('take_$id.wav');
+      if (pastCountIn) recordingProblem = '';
       notifyListeners();
       return;
     }
@@ -531,6 +542,9 @@ class StudioController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+String _describe(Object e) =>
+    e is PlatformException ? (e.message ?? e.code) : '$e';
 
 /// Turns a song/track name into something safe for a file name.
 String safeFileName(String name) {

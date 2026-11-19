@@ -80,12 +80,23 @@ final class AudioEngine {
   private let monitorReverb = AVAudioUnitReverb()
   private let monitorMixer = AVAudioMixerNode()
   private var monitorEnabled = false
+  /// The input is wired into the monitor chain only while monitoring is on,
+  /// so with it off the graph is the plain one that is known to record.
+  private var monitorConnected = false
   private var monitorVolume: Float = 0.8
 
   // Latency calibration capture (guarded by `lock`).
   private var capture: CalibrationCapture?
   private(set) var isCalibrating = false
   private var graphReady = false
+
+  // Self-repair: last time input audio arrived (guarded by `lock`) and the
+  // last restart attempt (main thread).
+  private var lastInputHost: UInt64 = 0
+  private var lastRestartHost: UInt64 = 0
+  /// A take the system stopped (route change, phone call), handed to the
+  /// next stopRecording so it isn't lost.
+  private var interruptedTake: [String: Any]?
 
   // Transport (main thread).
   private(set) var isPlaying = false
@@ -148,12 +159,10 @@ final class AudioEngine {
       monitorReverb.wetDryMix = 20
       graphReady = true
     }
-    let inFormat = engine.inputNode.outputFormat(forBus: 0)
-    if inFormat.channelCount > 0 {
-      engine.connect(engine.inputNode, to: monitorEQ, format: inFormat)
-      engine.connect(monitorEQ, to: monitorReverb, format: inFormat)
-      engine.connect(monitorReverb, to: monitorMixer, format: inFormat)
-      engine.connect(monitorMixer, to: engine.mainMixerNode, format: nil)
+    if monitorEnabled {
+      connectMonitor()
+    } else if monitorConnected {
+      disconnectMonitor()
     }
     applyMonitoring()
     let outRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
@@ -162,7 +171,67 @@ final class AudioEngine {
     clickBar = nil
     try installTaps()
     engine.prepare()
-    try engine.start()
+    do {
+      try engine.start()
+    } catch {
+      NSLog("multitrack_engine: engine start failed: \(error)")
+      throw error
+    }
+    lock.lock()
+    lastInputHost = mach_absolute_time()
+    lock.unlock()
+  }
+
+  private func connectMonitor() {
+    let inFormat = engine.inputNode.outputFormat(forBus: 0)
+    guard inFormat.channelCount > 0, inFormat.sampleRate > 0 else { return }
+    engine.connect(engine.inputNode, to: monitorEQ, format: inFormat)
+    engine.connect(monitorEQ, to: monitorReverb, format: inFormat)
+    engine.connect(monitorReverb, to: monitorMixer, format: inFormat)
+    engine.connect(monitorMixer, to: engine.mainMixerNode, format: nil)
+    monitorConnected = true
+  }
+
+  private func disconnectMonitor() {
+    engine.disconnectNodeOutput(engine.inputNode, bus: 0)
+    engine.disconnectNodeOutput(monitorEQ)
+    engine.disconnectNodeOutput(monitorReverb)
+    engine.disconnectNodeOutput(monitorMixer)
+    monitorConnected = false
+  }
+
+  /// Rebuilds the graph (e.g. monitoring switched on/off). Not while
+  /// recording: the change then waits for the next start.
+  private func restart(reason: String) {
+    guard !isRecording else { return }
+    NSLog("multitrack_engine: restarting engine (\(reason))")
+    lastRestartHost = mach_absolute_time()
+    stopTransport()
+    engine.stop()
+    do {
+      try start()
+    } catch {
+      NSLog("multitrack_engine: restart failed: \(error)")
+    }
+  }
+
+  /// Called with every status update: brings the engine back when iOS
+  /// stopped it or the microphone went quiet (no buffers at all).
+  private func repairIfStalled() {
+    guard graphReady, !isCalibrating else { return }
+    let now = mach_absolute_time()
+    if lastRestartHost != 0, AVAudioTime.seconds(forHostTime: now - lastRestartHost) < 2 {
+      return
+    }
+    lock.lock()
+    let last = lastInputHost
+    lock.unlock()
+    let silentFor = now > last ? AVAudioTime.seconds(forHostTime: now - last) : 0
+    if !engine.isRunning {
+      restart(reason: "engine stopped")
+    } else if silentFor > 1.5 && !isPlaying {
+      restart(reason: "no input for \(String(format: "%.1f", silentFor)) s")
+    }
   }
 
   private func installTaps() throws {
@@ -192,10 +261,20 @@ final class AudioEngine {
   @objc private func configurationChanged() {
     // Route changed (headphones, audio interface...): formats may differ now.
     DispatchQueue.main.async {
-      _ = try? self.stopRecording()
+      NSLog("multitrack_engine: audio configuration changed")
+      self.keepInterruptedTake()
       self.stopTransport()
-      try? self.start()
+      do {
+        try self.start()
+      } catch {
+        NSLog("multitrack_engine: start after configuration change failed: \(error)")
+      }
     }
+  }
+
+  private func keepInterruptedTake() {
+    guard isRecording, let take = try? stopRecording() else { return }
+    interruptedTake = take
   }
 
   @objc private func routeChanged() {
@@ -209,7 +288,7 @@ final class AudioEngine {
     else { return }
     DispatchQueue.main.async {
       if type == .began {
-        _ = try? self.stopRecording()
+        self.keepInterruptedTake()
         self.stopTransport()
       } else {
         try? self.start()
@@ -269,6 +348,9 @@ final class AudioEngine {
     monitorEnabled = enabled
     monitorVolume = max(0, min(1, volume))
     monitorReverb.wetDryMix = max(0, min(100, reverb * 100))
+    if enabled != monitorConnected && engine.isRunning {
+      restart(reason: enabled ? "monitoring on" : "monitoring off")
+    }
     applyMonitoring()
   }
 
@@ -371,7 +453,11 @@ final class AudioEngine {
       }
       let session = AVAudioSession.sharedInstance()
       let reported = session.inputLatency + session.outputLatency
-      let offset = measured.seconds - reported
+      guard measured.seconds > 0.002, measured.seconds < 1 else {
+        completion(.failure(EngineError.calibrationFailed))
+        return
+      }
+      let offset = max(-0.3, min(0.5, measured.seconds - reported))
       self.manualOffset = offset
       completion(
         .success([
@@ -389,7 +475,8 @@ final class AudioEngine {
   }
 
   func setLatencyOffset(ms: Double) {
-    manualOffset = ms / 1000
+    // A wild value (bad calibration) would cut whole takes away.
+    manualOffset = max(-0.3, min(0.5, ms / 1000))
   }
 
   // MARK: - Transport
@@ -443,6 +530,7 @@ final class AudioEngine {
   func startRecording(path: String) throws {
     try start()
     _ = try? stopRecording()
+    interruptedTake = nil
 
     let url = URL(fileURLWithPath: path)
     try FileManager.default.createDirectory(
@@ -483,7 +571,14 @@ final class AudioEngine {
     lock.unlock()
 
     stopTransport()
-    guard let file = file, let path = path else { throw EngineError.notRecording }
+    guard let file = file, let path = path else {
+      if let take = interruptedTake {
+        interruptedTake = nil
+        return take
+      }
+      throw EngineError.notRecording
+    }
+    NSLog("multitrack_engine: take \(frames) frames, latency \(latency) s")
     let duration = Double(frames) / file.processingFormat.sampleRate
     return ["path": path, "duration": duration, "latency": latency]
   }
@@ -498,6 +593,7 @@ final class AudioEngine {
     lock.lock()
     defer { lock.unlock() }
     let gain = inputGain
+    lastInputHost = mach_absolute_time()
     inputPeak = max(inputPeak, min(1, Self.peak(buffer) * gain))
     capture?.append(buffer, when)
     guard let writer = writer else { return }
@@ -537,6 +633,7 @@ final class AudioEngine {
   // MARK: - Status
 
   func status() -> [String: Any] {
+    repairIfStalled()
     lock.lock()
     let inPeak = inputPeak
     let outPeak = outputPeak
