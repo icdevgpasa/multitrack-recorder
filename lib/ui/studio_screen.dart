@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/project.dart';
 import '../studio/studio_controller.dart';
 import 'theme.dart';
+import 'visuals.dart';
 import 'widgets.dart';
 
 class StudioScreen extends StatefulWidget {
@@ -25,12 +26,16 @@ class _StudioScreenState extends State<StudioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: ListenableBuilder(
-            listenable: controller,
-            builder: (context, _) => switch (controller.phase) {
+      body: ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => ReactiveBackground(
+          level: controller.isRecording
+              ? controller.status.inputLevel
+              : controller.status.outputLevel,
+          beat: controller.status.beat,
+          recording: controller.isRecording,
+          child: SafeArea(
+            child: switch (controller.phase) {
               StudioPhase.loading => const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -97,19 +102,22 @@ class _Studio extends StatelessWidget {
           children: [
             _Header(controller: controller, onClose: onClose),
             Expanded(
-              child: p.tracks.isEmpty
+              child: p.tracks.isEmpty && !controller.isRecording
                   ? const _Message(
                       icon: Icons.graphic_eq,
                       text: 'Nagraj pierwszą ścieżkę.\nKolejne nagrasz, słuchając poprzednich.',
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      itemCount: p.tracks.length,
-                      itemBuilder: (context, i) => TrackTile(
-                        key: ValueKey(p.tracks[i].id),
-                        track: p.tracks[i],
-                        controller: controller,
-                      ),
+                      itemCount:
+                          p.tracks.length + (controller.isRecording ? 1 : 0),
+                      itemBuilder: (context, i) => i < p.tracks.length
+                          ? TrackTile(
+                              key: ValueKey(p.tracks[i].id),
+                              track: p.tracks[i],
+                              controller: controller,
+                            )
+                          : _RecordingTile(controller: controller),
                     ),
             ),
             _Transport(controller: controller),
@@ -382,9 +390,6 @@ class _TrackTileState extends State<TrackTile> {
     final audible = c.project.isAudible(t);
     final color = AppColors.track(t.colorIndex);
     final pos = c.status.positionSeconds;
-    final progress = c.isPlaying && t.durationSeconds > 0
-        ? (pos / t.durationSeconds).clamp(0.0, 1.0)
-        : 0.0;
     final pan = _dragPan ?? t.pan;
 
     return Container(
@@ -399,16 +404,6 @@ class _TrackTileState extends State<TrackTile> {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Playhead fill: placeholder until real waveforms arrive (step 3).
-          Positioned.fill(
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress,
-              child: Container(
-                color: color.withValues(alpha: audible ? 0.14 : 0.05),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 6, 4, 4),
             child: Column(
@@ -475,6 +470,28 @@ class _TrackTileState extends State<TrackTile> {
                       ],
                     ),
                   ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 10, top: 2),
+                  child: LayoutBuilder(
+                    builder: (context, box) => GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => c.seek(
+                        d.localPosition.dx / box.maxWidth * c.timelineSeconds,
+                      ),
+                      child: Semantics(
+                        label:
+                            'Przebieg ścieżki ${t.name}, dotknij, aby odtworzyć od tego miejsca',
+                        child: WaveformView(
+                          peaks: c.waveforms[t.id]?.peaks ?? const <double>[],
+                          timelineSeconds: c.timelineSeconds,
+                          color: color,
+                          dimmed: !audible,
+                          playheadSeconds: c.isPlaying && pos >= 0 ? pos : null,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
@@ -653,7 +670,9 @@ class _TransportState extends State<_Transport> {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          SpectrumBars(levels: s.spectrum, height: 36),
+          const SizedBox(height: 6),
           Row(
             children: [
               const Icon(Icons.mic, size: 16, color: AppColors.textDim),
@@ -738,4 +757,60 @@ Future<String?> promptText(
   );
   ctrl.dispose();
   return value;
+}
+
+/// Take being recorded: live waveform growing on the shared timeline.
+class _RecordingTile extends StatelessWidget {
+  const _RecordingTile({required this.controller});
+
+  final StudioController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.status;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.record.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.record.withValues(alpha: 0.25),
+            blurRadius: 18,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.fiber_manual_record,
+                color: AppColors.record,
+                size: 14,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                s.isCountingIn ? 'Odliczanie…' : 'Nagrywanie…',
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          WaveformView(
+            peaks: controller.liveLevels,
+            timelineSeconds: controller.timelineSeconds,
+            color: AppColors.record,
+            playheadSeconds: s.positionSeconds >= 0 ? s.positionSeconds : null,
+          ),
+        ],
+      ),
+    );
+  }
 }

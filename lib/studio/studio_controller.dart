@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 
+import '../audio/waveform.dart';
 import '../models/project.dart';
 import 'project_store.dart';
 
@@ -15,7 +16,9 @@ class StudioController extends ChangeNotifier {
     required this.store,
     required this.newProjectId,
     String Function()? idGenerator,
-  }) : _newId =
+    Future<Waveform?> Function(String path)? waveformLoader,
+  }) : _loadWaveform = waveformLoader ?? Waveform.load,
+       _newId =
            idGenerator ??
            (() => DateTime.now().microsecondsSinceEpoch.toRadixString(36));
 
@@ -23,6 +26,22 @@ class StudioController extends ChangeNotifier {
   final ProjectStore store;
   final String newProjectId;
   final String Function() _newId;
+  final Future<Waveform?> Function(String path) _loadWaveform;
+
+  /// Waveforms by track id, filled in the background.
+  final waveforms = <String, Waveform>{};
+
+  /// Input peaks of the take being recorded, at [Waveform.peaksPerSecond].
+  final liveLevels = <double>[];
+
+  /// Seconds shown on the shared timeline.
+  double get timelineSeconds {
+    final live = isRecording
+        ? liveLevels.length / Waveform.peaksPerSecond
+        : 0.0;
+    final len = project.lengthSeconds > live ? project.lengthSeconds : live;
+    return len < 1 ? 1 : len;
+  }
 
   StudioPhase phase = StudioPhase.loading;
   String? errorMessage;
@@ -46,6 +65,7 @@ class StudioController extends ChangeNotifier {
       await engine.initialize();
       await _syncEngine();
       _sub = engine.status.listen(_onStatus);
+      unawaited(_loadWaveforms());
       phase = StudioPhase.ready;
     } catch (e) {
       phase = StudioPhase.error;
@@ -56,6 +76,12 @@ class StudioController extends ChangeNotifier {
 
   void _onStatus(EngineStatus s) {
     status = s;
+    if (isRecording && s.isRecording && s.positionSeconds >= 0) {
+      final target = (s.positionSeconds * Waveform.peaksPerSecond).floor();
+      while (liveLevels.length < target) {
+        liveLevels.add(s.inputLevel);
+      }
+    }
     // Playback reached the end of the song.
     if (s.isPlaying &&
         !isRecording &&
@@ -96,9 +122,27 @@ class StudioController extends ChangeNotifier {
 
   // Transport ---------------------------------------------------------------
 
-  Future<void> play() async {
+  Future<void> play({double from = 0}) async {
     if (isRecording) return;
-    await engine.play();
+    await engine.play(fromSeconds: from);
+  }
+
+  /// Jump to [seconds] on the timeline and play from there.
+  Future<void> seek(double seconds) async {
+    if (isRecording || project.tracks.isEmpty) return;
+    final to = seconds.clamp(0.0, project.lengthSeconds);
+    await engine.play(fromSeconds: to);
+  }
+
+  Future<void> _loadWaveforms() async {
+    for (final t in List.of(project.tracks)) {
+      if (waveforms.containsKey(t.id)) continue;
+      final w = await _loadWaveform(store.audioPath(t.fileName));
+      if (w != null) {
+        waveforms[t.id] = w;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> stop() async {
@@ -116,6 +160,7 @@ class StudioController extends ChangeNotifier {
     if (isRecording) return;
     final id = _newId();
     _pendingTrackId = id;
+    liveLevels.clear();
     notifyListeners();
     try {
       await engine.startRecording(store.audioPath('take_$id.wav'));
@@ -154,6 +199,7 @@ class StudioController extends ChangeNotifier {
       ),
     );
     await _commit();
+    unawaited(_loadWaveforms());
   }
 
   // Tempo -------------------------------------------------------------------

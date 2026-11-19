@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:multitrack_engine/multitrack_engine.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:multitrack_recorder/audio/waveform.dart';
 import 'package:multitrack_recorder/models/project.dart';
 import 'package:multitrack_recorder/studio/project_library.dart';
 import 'package:multitrack_recorder/studio/project_store.dart';
@@ -86,6 +88,7 @@ void main() {
       store: ProjectStore(dir),
       newProjectId: 'p1',
       idGenerator: () => 'id${n++}',
+      waveformLoader: (path) async => Waveform(Float32List.fromList([0.5, 1])),
     );
   });
 
@@ -252,4 +255,55 @@ void main() {
     expect(panLabel(-0.4), 'L40');
     expect(panLabel(0), 'C');
   });
+
+  test(
+    'live levels follow the recording and waveforms load for new takes',
+    () async {
+      await c.init();
+      await c.startRecording();
+      EngineStatus st(double pos) => EngineStatus(
+        isPlaying: true,
+        isRecording: true,
+        isCountingIn: pos < 0,
+        positionSeconds: pos,
+        inputLevel: 0.4,
+        outputLevel: 0,
+        beat: 0,
+      );
+      engine.statusCtrl.add(st(-0.5));
+      engine.statusCtrl.add(st(1.0));
+      await Future<void>.delayed(Duration.zero);
+      expect(c.liveLevels, hasLength(Waveform.peaksPerSecond));
+      expect(c.timelineSeconds, 1.0);
+
+      await c.stopRecording();
+      await Future<void>.delayed(Duration.zero);
+      expect(c.waveforms[c.project.tracks.single.id]!.peaks, [0.5, 1]);
+    },
+  );
+
+  test('seek clamps to the song length', () async {
+    await c.init();
+    await recordTakes(1); // 3.5 s
+    final played = <double>[];
+    final seekEngine = _SeekEngine(engine, played);
+    final c2 = StudioController(
+      engine: seekEngine,
+      store: ProjectStore(dir),
+      newProjectId: 'p1',
+      waveformLoader: (_) async => null,
+    );
+    await c2.init();
+    await c2.seek(10);
+    await c2.seek(-1);
+    expect(played, [3.5, 0]);
+  });
+}
+
+class _SeekEngine extends FakeEngine {
+  _SeekEngine(FakeEngine _, this.played);
+  final List<double> played;
+
+  @override
+  Future<void> play({double fromSeconds = 0}) async => played.add(fromSeconds);
 }

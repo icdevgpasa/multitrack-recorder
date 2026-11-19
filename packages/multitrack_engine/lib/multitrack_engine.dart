@@ -107,6 +107,7 @@ class EngineStatus {
     required this.inputLevel,
     required this.outputLevel,
     required this.beat,
+    this.spectrum = const [],
   });
 
   factory EngineStatus.fromMap(Map<Object?, Object?> m) => EngineStatus(
@@ -117,6 +118,10 @@ class EngineStatus {
     inputLevel: (m['inputLevel'] as num? ?? 0).toDouble(),
     outputLevel: (m['outputLevel'] as num? ?? 0).toDouble(),
     beat: (m['beat'] as num? ?? -1).toInt(),
+    spectrum: [
+      for (final v in (m['spectrum'] as List? ?? const []))
+        (v as num).toDouble(),
+    ],
   );
 
   static const idle = EngineStatus(
@@ -142,6 +147,10 @@ class EngineStatus {
 
   /// Current metronome beat index within the bar, or -1.
   final int beat;
+
+  /// Band levels 0.0 – 1.0, low to high frequency (input while recording,
+  /// output otherwise). Empty when the engine sends none.
+  final List<double> spectrum;
 }
 
 class MultitrackEngine {
