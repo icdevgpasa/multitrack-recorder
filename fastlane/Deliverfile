@@ -1,0 +1,5 @@
+# Settings for `deliver` (lanes: metadata, release). Run fastlane from the repo root.
+app_identifier("com.icdevgpasa.nagrajto")
+platform("ios")
+metadata_path("./fastlane/metadata")
+screenshots_path("./fastlane/screenshots")

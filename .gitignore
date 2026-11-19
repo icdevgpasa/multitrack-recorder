@@ -46,3 +46,14 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output
+fastlane/api_key.json
+fastlane/*.p8
+*.p8
+
+# Raw screens (regenerate: flutter test screenshots/app_screens_test.dart)
+screenshots/raw/

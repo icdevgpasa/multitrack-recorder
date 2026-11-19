@@ -1,100 +1,105 @@
-# Publikacja NagrajTo (iOS)
+# Publikacja NagrajTo w App Store
 
-Nazwa: **NagrajTo** · identyfikator: `com.icdevgpasa.nagrajto` · wersja: `pubspec.yaml` → `version: 1.0.0+1`
-(część przed `+` to wersja w sklepie, po `+` numer buildu; każdy upload musi mieć wyższy numer buildu).
+Nazwa: **NagrajTo** · bundle ID: `com.icdevgpasa.nagrajto` · wersja: `pubspec.yaml` → `version: 1.0.0+1`
+(przed `+` wersja w sklepie; numer buildu fastlane ustawia sam na „ostatni w TestFlight + 1”).
+Aplikacja jest tylko na iPhone'a (na iPadzie działa w trybie iPhone'a), więc wystarczą zrzuty 6,9".
 
-## 1. Konto Apple
+Co jest w repo:
 
-1. Apple Developer Program: https://developer.apple.com/programs/enroll/ (99 USD rocznie).
-2. W Xcode: *Settings → Accounts* dodaj Apple ID.
-3. `open ios/Runner.xcworkspace` → target **Runner** → *Signing & Capabilities* → wybierz swój **Team**.
-   Identyfikator możesz tam zmienić, ale tylko przed pierwszą publikacją.
+| Co | Gdzie |
+|---|---|
+| Teksty sklepu PL + EN (nazwa, podtytuł, opis, słowa kluczowe, tekst promocyjny, co nowego, URL-e) | `fastlane/metadata/<pl\|en-US>/` |
+| Notatki dla recenzenta Apple | `fastlane/metadata/review_information/notes.txt` |
+| Zrzuty ekranu 1320 × 2868, PL + EN | `fastlane/screenshots/<pl\|en-US>/` |
+| Generator zrzutów (prawdziwe UI z danymi demo) | `screenshots/app_screens_test.dart` + `tool/frame_screenshots.py` |
+| Build + upload | `fastlane/Fastfile` |
+| Polityka prywatności | `docs/prywatnosc.md` (URL już w metadanych) |
+| Ikona, opis użycia mikrofonu (PL/EN), privacy manifest, „brak szyfrowania” | `ios/Runner/` |
 
-## 2. Testy na iPhonie (przed wysyłką)
+## 1. Jednorazowo: konto i narzędzia (Mac)
 
-Na prawdziwym urządzeniu, najlepiej ze słuchawkami i bez:
+1. **Apple Developer Program**: https://developer.apple.com/programs/enroll/ (99 USD/rok, aktywacja do 48 h).
+2. Xcode → *Settings → Accounts* → dodaj Apple ID.
+3. `open ios/Runner.xcworkspace` → target **Runner** → *Signing & Capabilities* →
+   zaznacz *Automatically manage signing* i wybierz swój **Team**. Zamknij Xcode.
+4. fastlane: `brew install fastlane` (albo `bundle install` w katalogu repo).
+5. Pillow do zrzutów (tylko gdy chcesz je generować od nowa): `pip3 install pillow`.
+
+## 2. Jednorazowo: aplikacja w App Store Connect
+
+1. https://appstoreconnect.apple.com → *Apps → + → New App*:
+   iOS, nazwa **NagrajTo**, język główny **Polish**, bundle ID `com.icdevgpasa.nagrajto`
+   (jeśli go nie ma na liście: https://developer.apple.com/account/resources/identifiers → +), SKU `nagrajto-ios`.
+   Jeśli nazwa jest zajęta, zmień ją w `fastlane/metadata/*/name.txt` (np. „NagrajTo – Multitrack”).
+2. **Klucz API** (żeby fastlane nie pytał o hasło i kody 2FA):
+   *Users and Access → Integrations → App Store Connect API → +*, rola **App Manager**.
+   Pobierz plik `AuthKey_XXXX.p8` (da się tylko raz) i włóż go do `fastlane/`.
+   Skopiuj `fastlane/api_key.example.json` → `fastlane/api_key.json` i wpisz Key ID, Issuer ID i nazwę pliku.
+   Oba pliki są w `.gitignore`, nie trafią na GitHuba.
+3. W App Store Connect, w aplikacji, ustaw ręcznie (fastlane tego nie robi):
+   - **App Privacy** → *Get Started* → „No, we do not collect data from this app” → *Publish*.
+   - **Age Rating**: odpowiedz „nie” na wszystko → 4+.
+   - **Pricing and Availability**: Free, wszystkie kraje (albo wybrane).
+   - **App Review Information**: Twoje imię, nazwisko, telefon i e-mail kontaktowy
+     (notatki dla recenzenta wgra fastlane).
+
+## 3. Testy na iPhonie przed wysyłką
 
 - [ ] Pierwsze uruchomienie pyta o mikrofon; po odmowie widać komunikat.
 - [ ] Nagranie 3–4 ścieżek z metronomem i odliczaniem; ścieżki są równo w czasie
       (jeśli nie: Ustawienia audio → Kalibruj, osobno dla głośnika i każdych słuchawek).
-- [ ] Odsłuch na żywo w słuchawkach przewodowych; na głośniku odsłuch się wycisza (brak sprzężenia).
+- [ ] Odsłuch na żywo w słuchawkach przewodowych; na głośniku odsłuch się wycisza.
 - [ ] Nagrywanie przez słuchawki przewodowe, AirPods i (jeśli masz) interfejs audio USB.
-- [ ] Telefon dzwoni / przychodzi alarm w trakcie nagrywania: aplikacja się nie wiesza.
+- [ ] Telefon dzwoni / alarm w trakcie nagrywania: aplikacja się nie wiesza, nagranie zostaje.
 - [ ] Solo, mute, panorama, master słychać w odtwarzaniu i w eksporcie.
-- [ ] Edycja ścieżki (⋮ → Edytuj): przycięcie, fade in/out, przesunięcie o 10 ms i o miarę słychać w odtwarzaniu i eksporcie; „Przywróć oryginał” cofa wszystko.
+- [ ] Edycja ścieżki: przycięcie, fade, przesunięcie; „Przywróć oryginał” cofa wszystko.
 - [ ] Eksport M4A, WAV i pojedynczych ścieżek; zapis do Plików i AirDrop.
 - [ ] Długie nagranie (10+ minut): fala się rysuje, eksport kończy się poprawnie.
-- [ ] Lista utworów: nowy, zmiana nazwy, usuwanie.
-- [ ] Ikona i ekran startowy wyglądają dobrze; tryb „Ogranicz ruch” zatrzymuje animacje tła.
+- [ ] Lista utworów: nowy, zmiana nazwy, usuwanie. Telefon po angielsku: wszystko po angielsku.
 
-## 3. Build i wysyłka
+## 4. Wysyłka (z katalogu repo)
 
 ```sh
-flutter clean && flutter pub get
-flutter build ipa --release
+git pull
+fastlane ios beta        # testy, build .ipa, upload do TestFlight (~10 min + ~20 min przetwarzania u Apple)
 ```
 
-Plik `.ipa` ląduje w `build/ios/ipa/`. Wyślij go aplikacją **Transporter** (Mac App Store)
-albo przez Xcode: *Window → Organizer → Distribute App*.
+Sprawdź build w aplikacji **TestFlight** na swoim iPhonie. Gdy jest dobrze:
 
-## 4. App Store Connect
+```sh
+fastlane ios metadata    # wgrywa opisy PL/EN, notatki dla recenzenta i zrzuty ekranu
+```
 
-1. https://appstoreconnect.apple.com → *Apps → +* → New App
-   (platforma iOS, nazwa NagrajTo, język główny polski, bundle ID jak wyżej, SKU np. `nagrajto-ios`).
-2. **TestFlight**: po przetworzeniu buildu (ok. 15–30 min) dodaj siebie i znajomych muzyków jako testerów
-   wewnętrznych. Zewnętrzni testerzy wymagają krótkiej recenzji Apple.
-3. **App Privacy**: „Data Not Collected” (aplikacja niczego nie wysyła; nagrania zostają na telefonie).
-4. **Polityka prywatności (URL)** jest wymagana nawet bez zbierania danych. Gotowy tekst jest w
-   [`docs/prywatnosc.md`](prywatnosc.md); można go opublikować np. przez GitHub Pages.
-5. Kategoria: **Music**. Ocena wiekowa: 4+.
-6. Zrzuty ekranu: wymagane dla 6,9" (1320 × 2868). Najprościej z symulatora iPhone 16 Pro Max:
-   `flutter run` na symulatorze, potem ⌘S w symulatorze. Pokaż: listę utworów, studio z 3–4 ścieżkami
-   podczas odtwarzania (fale + spektrum), nagrywanie (czerwona karta), okno eksportu.
+Potem w App Store Connect → wersja 1.0 → sekcja **Build** → wybierz build z TestFlight →
+**Add for Review** → **Submit**. Recenzja trwa zwykle 1–2 dni. Po akceptacji kliknij *Release*
+(ustawione jest ręczne wydanie).
 
-## 5. Teksty do sklepu
+Bez fastlane: `flutter build ipa --release`, potem plik z `build/ios/ipa/` przez aplikację
+**Transporter**, a teksty i zrzuty wklejasz ręcznie z `fastlane/metadata` i `fastlane/screenshots`.
 
-**Podtytuł (max 30 znaków):** Wielościeżkowe studio
+Kolejne wersje: podbij `version:` w `pubspec.yaml` (np. `1.0.1+1`), wpisz zmiany w
+`fastlane/metadata/*/release_notes.txt`, potem `fastlane ios release` i *Submit* w App Store Connect.
 
-**Słowa kluczowe (max 100 znaków):**
-`nagrywanie,ścieżki,multitrack,muzyka,gitara,looper,metronom,demo,próba,zespół,dyktafon,wokal`
+## 5. Zrzuty ekranu
 
-**Opis (PL):**
+Gotowe są w `fastlane/screenshots/`. Żeby je odświeżyć po zmianach w UI:
 
-> NagrajTo to wielościeżkowe studio w kieszeni. Nagraj gitarę, potem bas, wokal i drugi głos,
-> słuchając w słuchawkach tego, co już nagrałeś. Każda ścieżka trafia równo w czas dzięki
-> automatycznej kompensacji opóźnienia.
->
-> • Nagrywanie kolejnych ścieżek z odsłuchem poprzednich
-> • Metronom z odliczaniem i regulacją tempa
-> • Mikser: głośność, panorama, solo i wyciszenie każdej ścieżki
-> • Przebiegi fali na żywo, wizualizator spektrum i tło, które pulsuje w rytm muzyki
-> • Eksport całego utworu (M4A lub WAV) albo każdej ścieżki osobno do dalszej pracy w DAW
-> • Udostępnianie przez AirDrop, Pliki i komunikatory
->
-> Nagrania zostają na Twoim telefonie. Bez kont, bez reklam, bez śledzenia.
+```sh
+fastlane ios screenshots
+```
 
-**Description (EN):**
+Renderuje prawdziwe ekrany aplikacji (studio, nagrywanie, eksport, lista utworów) z danymi demo,
+w rozdzielczości iPhone'a 6,9", i dodaje podpisy. Podpisy zmienisz w `tool/frame_screenshots.py`,
+dane demo w `screenshots/app_screens_test.dart`.
 
-> NagrajTo is a multitrack studio in your pocket. Record guitar, then bass, vocals and harmonies
-> while listening to everything you've already laid down. Automatic latency compensation keeps
-> every take in time.
->
-> • Overdub new tracks while hearing the previous ones
-> • Metronome with count-in and adjustable tempo
-> • Mixer: volume, pan, solo and mute per track
-> • Live waveforms, a spectrum visualizer and a background that pulses with your music
-> • Export the full song (M4A or WAV) or every track separately for your DAW
-> • Share via AirDrop, Files and messaging apps
->
-> Your recordings stay on your phone. No accounts, no ads, no tracking.
+## 6. Najczęstsze powody odrzucenia (sprawdzone)
 
-**Uwagi dla recenzenta (Review Notes):**
+- Opis użycia mikrofonu: jest (PL i EN). ✓
+- Polityka prywatności: URL w metadanych, plik w repo musi być publiczny (repo jest publiczne). ✓
+- Szyfrowanie: `ITSAppUsesNonExemptEncryption = NO`, więc bez pytań o eksport. ✓
+- Privacy manifest (`PrivacyInfo.xcprivacy`) w aplikacji i w pluginie audio. ✓
+- Recenzent musi umieć coś nagrać bez instrukcji: notatki opisują to krok po kroku. ✓
 
-> The app records audio with the microphone. To test: tap "Nowy utwór", tap the red record button,
-> play or sing for a few seconds, tap it again. Repeat to add more tracks. The share icon (top right)
-> exports the song. No login is required.
+## 7. Ikona
 
-## 6. Ikona
-
-Ikona jest generowana skryptem `tool/make_icon.py` (Python + Pillow). Żeby ją zmienić,
-popraw skrypt i wygeneruj rozmiary ponownie albo podmień `ios/Runner/Assets.xcassets/AppIcon.appiconset`.
+Generowana skryptem `tool/make_icon.py` (Python + Pillow) do `ios/Runner/Assets.xcassets/AppIcon.appiconset`.
